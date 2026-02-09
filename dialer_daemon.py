@@ -31,8 +31,10 @@ logger = logging.getLogger(__name__)
 
 # إعداد الاتصال بقاعدة البيانات
 # نستخدم مسار مطلق لملف قاعدة البيانات في مجلد instance
-db_path = f'sqlite:///{os.path.join(os.getcwd(), "instance", "autodialer.db")}'
-engine = create_engine(db_path)
+# db_path = f'sqlite:///{os.path.join(os.getcwd(), "instance", "autodialer.db")}'
+# engine = create_engine(db_path)
+db_uri = 'mysql+pymysql://root:Medoza120a@officex2.ddns.net/wasel'
+engine = create_engine(db_uri, pool_recycle=280)
 Session = sessionmaker(bind=engine)
 
 def notify_server(event_type, payload):
