@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block header_title %}إعدادات النظام{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <div><i class="fas fa-sliders-h me-2"></i> تهيئة الاتصال والمزامنة</div>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <fieldset {% if not current_user.can('settings', 'edit') %}disabled{% endif %}>
+                    <h5 class="mb-3 text-primary border-bottom pb-2">
+                        <i class="fas fa-network-wired me-2"></i> إعدادات AMI (Asterisk Manager Interface)
+                    </h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="ami_host" class="form-label">عنوان الخادم (Host)</label>
+                            <input type="text" class="form-control" id="ami_host" name="ami_host" value="{{ settings.ami_host }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ami_port" class="form-label">المنفذ (Port)</label>
+                            <input type="number" class="form-control" id="ami_port" name="ami_port" value="{{ settings.ami_port }}" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="ami_user" class="form-label">اسم المستخدم (Username)</label>
+                            <input type="text" class="form-control" id="ami_user" name="ami_user" value="{{ settings.ami_user }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ami_secret" class="form-label">كلمة المرور (Secret)</label>
+                            <input type="password" class="form-control" id="ami_secret" name="ami_secret" value="{{ settings.ami_secret }}" required>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                        <i class="fas fa-phone-alt me-2"></i> إعدادات الاتصال
+                    </h5>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="dial_delay" class="form-label">الفاصل الزمني بين المكالمات (ثواني)</label>
+                            <input type="number" class="form-control" id="dial_delay" name="dial_delay" value="{{ settings.dial_delay }}" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="concurrent_channels" class="form-label">عدد القنوات المتوازية (Concurrent Channels)</label>
+                            <input type="number" class="form-control" id="concurrent_channels" name="concurrent_channels" value="{{ settings.concurrent_channels }}" min="1" max="30" required>
+                            <div class="form-text text-muted">عدد المكالمات التي يمكن إجراؤها في وقت واحد (يعتمد على عدد الدونجل المتاحة).</div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="max_retries" class="form-label">عدد محاولات إعادة الاتصال القصوى</label>
+                            <input type="number" class="form-control" id="max_retries" name="max_retries" value="{{ settings.max_retries }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="retry_interval" class="form-label">الفاصل الزمني بين المحاولات (ثواني)</label>
+                            <input type="number" class="form-control" id="retry_interval" name="retry_interval" value="{{ settings.retry_interval }}" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="monitor_extension" class="form-label">رقم تحويلة المراقبة (Monitor Extension)</label>
+                            <input type="text" class="form-control" id="monitor_extension" name="monitor_extension" value="{{ settings.monitor_extension }}" placeholder="e.g. 100 or SIP/100">
+                            <div class="form-text text-muted">التحويلة التي ستستقبل مكالمة المراقبة (ChanSpy).</div>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                        <i class="fas fa-database me-2"></i> إعدادات قاعدة بيانات سجل المكالمات (CDR - MySQL)
+                    </h5>
+                    <div class="alert alert-light border shadow-sm mb-3">
+                        <i class="fas fa-info-circle text-info me-2"></i>
+                        هذه الإعدادات ضرورية لجلب مدة المكالمة وحالة الرد الفعلية من قاعدة بيانات Issabel.
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="cdr_db_host" class="form-label">عنوان الخادم (Host)</label>
+                            <input type="text" class="form-control" id="cdr_db_host" name="cdr_db_host" value="{{ settings.cdr_db_host }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cdr_db_port" class="form-label">المنفذ (Port)</label>
+                            <input type="number" class="form-control" id="cdr_db_port" name="cdr_db_port" value="{{ settings.cdr_db_port }}" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="cdr_db_user" class="form-label">اسم المستخدم (User)</label>
+                            <input type="text" class="form-control" id="cdr_db_user" name="cdr_db_user" value="{{ settings.cdr_db_user }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cdr_db_pass" class="form-label">كلمة المرور (Password)</label>
+                            <input type="password" class="form-control" id="cdr_db_pass" name="cdr_db_pass" value="{{ settings.cdr_db_pass }}">
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="cdr_db_name" class="form-label">اسم قاعدة البيانات (DB Name)</label>
+                            <input type="text" class="form-control" id="cdr_db_name" name="cdr_db_name" value="{{ settings.cdr_db_name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="cdr_table_name" class="form-label">اسم الجدول (Table Name)</label>
+                            <input type="text" class="form-control" id="cdr_table_name" name="cdr_table_name" value="{{ settings.cdr_table_name }}" required>
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                        <i class="fab fa-telegram me-2"></i> تنبيهات تليجرام
+                    </h5>
+                    <div class="alert alert-light border shadow-sm mb-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="fas fa-bell text-warning me-2"></i>
+                            تم نقل إعدادات تليجرام إلى صفحة مستقلة للحصول على خيارات متقدمة.
+                        </div>
+                        <a href="{{ url_for('telegram_settings') }}" class="btn btn-primary">
+                            <i class="fas fa-cog me-2"></i> إدارة إعدادات تليجرام
+                        </a>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        {% if current_user.can('settings', 'edit') %}
+                        <button type="submit" class="btn btn-primary px-5">
+                            <i class="fas fa-save me-2"></i> حفظ الإعدادات
+                        </button>
+                        {% endif %}
+                    </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

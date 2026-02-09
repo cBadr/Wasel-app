@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}شاشة الأوامر (SSH){% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">شاشة الأوامر (Terminal)</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>SSH Terminal</h5>
+                    <div id="connection-status" class="badge bg-secondary">غير متصل</div>
+                </div>
+                <div class="card-body">
+                    <!-- Connection Form -->
+                    <div id="connection-form" class="row g-3 align-items-end mb-3">
+                        <div class="col-md-3">
+                            <label for="ssh_host" class="form-label">Host</label>
+                            <input type="text" class="form-control" id="ssh_host" placeholder="127.0.0.1" value="{{ settings.ami_host }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="ssh_port" class="form-label">Port</label>
+                            <input type="number" class="form-control" id="ssh_port" placeholder="22" value="22">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="ssh_user" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="ssh_user" placeholder="root" value="root">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="ssh_pass" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="ssh_pass" placeholder="Password">
+                        </div>
+                        <div class="col-md-1">
+                            <button id="btn-connect" class="btn btn-primary w-100" onclick="connectSSH()">
+                                <i class="fas fa-plug"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Terminal Container -->
+                    <div id="terminal-container" style="height: 500px; background-color: #000; padding: 10px; border-radius: 4px;"></div>
+                    
+                    <div class="mt-2 text-end">
+                        <button id="btn-disconnect" class="btn btn-danger" onclick="disconnectSSH()" style="display: none;">
+                            <i class="fas fa-unlink me-2"></i>قطع الاتصال
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Xterm.js CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+
+<!-- Xterm.js JS -->
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+<script>
+    var socket = io();
+    var term;
+    var fitAddon;
+    var isConnected = false;
+
+    // Initialize Terminal
+    function initTerminal() {
+        term = new Terminal({
+            cursorBlink: true,
+            theme: {
+                background: '#000000',
+                foreground: '#ffffff'
+            },
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            fontSize: 14
+        });
+        
+        fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        
+        term.open(document.getElementById('terminal-container'));
+        fitAddon.fit();
+        
+        term.onData(data => {
+            if (isConnected) {
+                socket.emit('ssh_input', { data: data });
+            }
+        });
+        
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            if (isConnected) {
+                socket.emit('resize', { cols: term.cols, rows: term.rows });
+            }
+        });
+    }
+
+    function connectSSH() {
+        var host = document.getElementById('ssh_host').value;
+        var port = document.getElementById('ssh_port').value;
+        var user = document.getElementById('ssh_user').value;
+        var pass = document.getElementById('ssh_pass').value;
+
+        if (!host || !user || !pass) {
+            alert('يرجى ملء جميع حقول الاتصال');
+            return;
+        }
+
+        term.reset();
+        term.write('Connecting to ' + host + '...\r\n');
+        
+        document.getElementById('btn-connect').disabled = true;
+        
+        socket.emit('connect_ssh', {
+            host: host,
+            port: parseInt(port),
+            username: user,
+            password: pass,
+            cols: term.cols,
+            rows: term.rows
+        });
+    }
+
+    function disconnectSSH() {
+        socket.emit('disconnect_ssh');
+        document.getElementById('btn-disconnect').style.display = 'none';
+        document.getElementById('connection-form').style.display = 'flex';
+        document.getElementById('connection-status').className = 'badge bg-secondary';
+        document.getElementById('connection-status').innerText = 'غير متصل';
+        document.getElementById('btn-connect').disabled = false;
+        isConnected = false;
+        term.write('\r\nDisconnected.\r\n');
+    }
+
+    socket.on('ssh_output', function(data) {
+        term.write(data.data);
+    });
+
+    socket.on('ssh_status', function(data) {
+        if (data.status === 'connected') {
+            isConnected = true;
+            document.getElementById('connection-status').className = 'badge bg-success';
+            document.getElementById('connection-status').innerText = 'متصل';
+            document.getElementById('connection-form').style.display = 'none';
+            document.getElementById('btn-disconnect').style.display = 'inline-block';
+            fitAddon.fit();
+            socket.emit('resize', { cols: term.cols, rows: term.rows });
+        } else if (data.status === 'error') {
+            term.write('\r\nError: ' + data.message + '\r\n');
+            document.getElementById('btn-connect').disabled = false;
+            isConnected = false;
+        } else if (data.status === 'disconnected') {
+            disconnectSSH();
+        }
+    });
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', initTerminal);
+</script>
+{% endblock %}

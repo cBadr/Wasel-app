@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block header_title %}سجلات النظام (Live Logs){% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-terminal me-2"></i> dialer.log</h5>
+        <div>
+            <span class="badge bg-success me-2" id="status-badge">Connected</span>
+            <button class="btn btn-sm btn-outline-light" onclick="refreshLogs()">
+                <i class="fas fa-sync-alt"></i> تحديث
+            </button>
+        </div>
+    </div>
+    <div class="card-body bg-black p-0">
+        <div id="log-container" class="p-3" style="height: 500px; overflow-y: auto; font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9rem; background-color: #1e1e1e; color: #d4d4d4;">
+            Loading logs...
+        </div>
+    </div>
+    <div class="card-footer text-muted small">
+        يتم التحديث تلقائياً كل 5 ثواني.
+    </div>
+</div>
+
+<script>
+    const logContainer = document.getElementById('log-container');
+    const statusBadge = document.getElementById('status-badge');
+    let autoScroll = true;
+
+    // إيقاف التمرير التلقائي إذا قام المستخدم بالتمرير لأعلى
+    logContainer.addEventListener('scroll', () => {
+        if (logContainer.scrollTop + logContainer.clientHeight >= logContainer.scrollHeight - 20) {
+            autoScroll = true;
+        } else {
+            autoScroll = false;
+        }
+    });
+
+    function fetchLogs() {
+        fetch('/api/logs')
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                logContainer.innerHTML = data.logs.join('<br>'); // استخدام <br> للفصل بين الأسطر
+                if (autoScroll) {
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+                statusBadge.className = "badge bg-success me-2";
+                statusBadge.textContent = "Connected";
+            })
+            .catch(error => {
+                console.error('Error fetching logs:', error);
+                statusBadge.className = "badge bg-danger me-2";
+                statusBadge.textContent = "Disconnected";
+            });
+    }
+
+    // تحديث أولي
+    fetchLogs();
+
+    // تحديث دوري
+    setInterval(fetchLogs, 5000);
+
+    function refreshLogs() {
+        fetchLogs();
+    }
+</script>
+{% endblock %}

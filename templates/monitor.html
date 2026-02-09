@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block header_title %}المراقبة الحية{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div><i class="fas fa-chart-bar me-2"></i> حالة الحملة النشطة</div>
+                <span class="badge bg-secondary rounded-pill" id="last-update">جاري الاتصال...</span>
+            </div>
+            <div class="card-body">
+                <div class="row text-center" id="stats-container">
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3 border rounded bg-light">
+                            <h6 class="text-muted">إجمالي الأرقام</h6>
+                            <h2 class="text-primary fw-bold" id="total-count">-</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3 border rounded bg-light">
+                            <h6 class="text-muted">قيد الانتظار</h6>
+                            <h2 class="text-warning fw-bold" id="pending-count">-</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3 border rounded bg-light">
+                            <h6 class="text-muted">تم الاتصال</h6>
+                            <h2 class="text-info fw-bold" id="dialed-count">-</h2>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="p-3 border rounded bg-light">
+                            <h6 class="text-muted">تم الرد</h6>
+                            <h2 class="text-success fw-bold" id="answered-count">-</h2>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <h6 class="text-muted mb-2">نسبة التقدم</h6>
+                    <div class="progress" style="height: 25px;">
+                        <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% if current_user.can('monitor_queues', 'view') %}
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <div><i class="fas fa-users-cog me-2"></i> حالة الطوابير (Queues)</div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>الطابور</th>
+                                <th>المسجلين</th>
+                                <th>المتصلين</th>
+                                <th>الانتظار</th>
+                            </tr>
+                        </thead>
+                        <tbody id="queue-list">
+                            <tr><td colspan="4" class="text-center text-muted">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if current_user.can('monitor_trunks', 'view') %}
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <div><i class="fas fa-network-wired me-2"></i> حالة الترانكات (Trunks)</div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>الحالة</th>
+                                <th>الاستجابة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trunk-list">
+                            <tr><td colspan="3" class="text-center text-muted">جاري التحميل...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="row">
+    {% if current_user.can('monitor_dongles', 'view') %}
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <div><i class="fas fa-server me-2"></i> حالة الدونجلات (Dongles)</div>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info border-0 shadow-sm mb-3">
+                    <i class="fas fa-bolt me-2"></i>
+                    مراقبة لحظية (Live Socket)
+                </div>
+                <div id="dongle-loader" class="text-center py-3" style="display: none;">
+                    <i class="fas fa-sync fa-spin fa-lg text-muted"></i>
+                </div>
+                <div class="list-group" id="dongle-list">
+                    <!-- سيتم إضافة الدونجلات هنا -->
+                    <div class="text-center text-muted py-3">جاري انتظار تحديث الحالة...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <div><i class="fas fa-history me-2"></i> آخر النشاطات</div>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush" id="activity-log">
+                    <!-- سيتم إضافة النشاطات هنا -->
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js"></script>
+<script>
+    const socket = io();
+    
+    // عند الاتصال
+    socket.on('connect', () => {
+        console.log('Connected to WebSocket!');
+        document.getElementById('last-update').innerHTML = '<i class="fas fa-circle text-success me-1"></i> متصل';
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Disconnected from WebSocket!');
+        document.getElementById('last-update').innerHTML = '<i class="fas fa-circle text-danger me-1"></i> غير متصل';
+    });
+
+    // تحديث حالة الدونجل
+    socket.on('dongle_update', (data) => {
+        const dongleList = document.getElementById('dongle-list');
+        if (!dongleList) return; // إذا كان العنصر مخفياً بسبب الصلاحيات
+
+        dongleList.innerHTML = ''; // مسح القائمة
+        
+        const allDongles = [...data.free, ...data.allocated].sort();
+        
+        if (allDongles.length === 0) {
+            dongleList.innerHTML = '<div class="text-center text-muted py-3">لا توجد دونجلات متاحة</div>';
+            return;
+        }
+
+        allDongles.forEach(dongle => {
+            const isAllocated = data.allocated.includes(dongle);
+            const statusClass = isAllocated ? 'list-group-item-warning' : 'list-group-item-success';
+            const statusIcon = isAllocated ? '<i class="fas fa-phone-volume fa-spin text-warning me-2"></i> مشغول' : '<i class="fas fa-check-circle text-success me-2"></i> متاح';
+            
+            let actionBtn = '';
+            if (isAllocated) {
+                 actionBtn = `
+                 <div class="btn-group ms-2" role="group">
+                     <button class="btn btn-sm btn-outline-primary" onclick="spyChannel('Dongle/${dongle}', 'q')" title="تنسط (Listen)">
+                        <i class="fas fa-headphones"></i>
+                     </button>
+                     <button class="btn btn-sm btn-outline-warning" onclick="spyChannel('Dongle/${dongle}', 'w')" title="همس (Whisper)">
+                        <i class="fas fa-user-secret"></i>
+                     </button>
+                 </div>
+                 `;
+            }
+
+            const item = document.createElement('div');
+            item.className = `list-group-item d-flex justify-content-between align-items-center ${statusClass}`;
+            item.innerHTML = `
+                <span class="fw-bold">${dongle}</span>
+                <div class="d-flex align-items-center">
+                    <span>${statusIcon}</span>
+                    ${actionBtn}
+                </div>
+            `;
+            dongleList.appendChild(item);
+        });
+    });
+    
+    // Spy Function
+    function spyChannel(channel, option = 'q') {
+        let actionName = option === 'w' ? 'الهمس (Whisper)' : 'التنسط (Listen)';
+        if (!confirm(`هل تريد بدء ${actionName} لهذا الخط؟ سيتم الاتصال بتحويلتك.`)) return;
+        
+        const formData = new FormData();
+        formData.append('channel', channel);
+        formData.append('option', option);
+        
+        fetch('/api/monitor_spy', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('جاري الاتصال بتحويلتك...');
+            } else {
+                alert('فشل: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('حدث خطأ في الاتصال');
+        });
+    }
+
+    // عند بدء مكالمة
+    socket.on('call_started', (data) => {
+        addActivityLog(`بدء الاتصال بالرقم ${data.phone} عبر ${data.dongle}`, 'info');
+        updateStats(); // تحديث الإحصائيات العامة (عبر API القديم مؤقتاً حتى نحدثها بالسوكت بالكامل)
+    });
+
+    // عند انتهاء مكالمة
+    socket.on('call_ended', (data) => {
+        addActivityLog(`انتهاء مهمة الدونجل ${data.dongle}`, 'secondary');
+        updateStats();
+    });
+
+    function addActivityLog(message, type='info') {
+        const log = document.getElementById('activity-log');
+        const item = document.createElement('li');
+        item.className = `list-group-item list-group-item-${type} small fade-in`;
+        item.innerHTML = `<span class="fw-bold text-muted">${new Date().toLocaleTimeString()}</span> - ${message}`;
+        
+        log.insertBefore(item, log.firstChild);
+        
+        // الاحتفاظ بآخر 10 فقط
+        if (log.children.length > 10) {
+            log.removeChild(log.lastChild);
+        }
+    }
+
+    // الإبقاء على التحديث الدوري للإحصائيات كخطة بديلة ولضمان الدقة
+    function updateStats() {
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                // تحديث العدادات كما في الكود السابق
+                document.getElementById('total-count').textContent = data.total;
+                document.getElementById('pending-count').textContent = data.pending;
+                document.getElementById('dialed-count').textContent = data.dialed;
+                document.getElementById('answered-count').textContent = data.answered;
+                
+                // تحديث شريط التقدم
+                if (data.total > 0) {
+                    const percent = Math.round(((data.total - data.pending) / data.total) * 100);
+                    const progressBar = document.getElementById('progress-bar');
+                    progressBar.style.width = percent + '%';
+                    progressBar.textContent = percent + '%';
+                }
+            })
+            .catch(err => console.error('Error fetching stats:', err));
+    }
+
+    // تحديث الإحصائيات المتقدمة (Queues & Trunks)
+    function updateAdvancedStats() {
+        fetch('/api/monitor_advanced')
+            .then(response => response.json())
+            .then(data => {
+                // Update Queues
+                const queueList = document.getElementById('queue-list');
+                if (queueList) {
+                    queueList.innerHTML = '';
+                    if (data.queues.length === 0) {
+                        queueList.innerHTML = '<tr><td colspan="4" class="text-center text-muted">لا توجد طوابير نشطة</td></tr>';
+                    } else {
+                        data.queues.forEach(q => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td><span class="badge bg-primary">${q.Queue || 'N/A'}</span></td>
+                                <td>${q.LoggedIn || 0}</td>
+                                <td>${q.Callers || 0}</td>
+                                <td>${q.HoldTime || 0}s</td>
+                            `;
+                            queueList.appendChild(tr);
+                        });
+                    }
+                }
+
+                // Update Trunks
+                const trunkList = document.getElementById('trunk-list');
+                if (trunkList) {
+                    trunkList.innerHTML = '';
+                    if (data.trunks.length === 0) {
+                        trunkList.innerHTML = '<tr><td colspan="3" class="text-center text-muted">لا توجد ترانكات معرفة</td></tr>';
+                    } else {
+                        data.trunks.forEach(t => {
+                            let statusBadge = 'bg-secondary';
+                            if (t.status === 'Online') statusBadge = 'bg-success';
+                            else if (t.status === 'Offline') statusBadge = 'bg-danger';
+                            
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td><span class="fw-bold">${t.name}</span></td>
+                                <td><span class="badge ${statusBadge}">${t.status}</span></td>
+                                <td><small class="text-muted">${t.latency || '-'}</small></td>
+                            `;
+                            trunkList.appendChild(tr);
+                        });
+                    }
+                }
+            })
+            .catch(err => console.error('Error fetching advanced stats:', err));
+    }
+
+    // تحديث أولي
+    updateStats();
+    updateAdvancedStats();
+    setInterval(updateStats, 5000); // تحديث كل 5 ثواني
+    setInterval(updateAdvancedStats, 10000); // تحديث كل 10 ثواني (AMI أبطأ قليلاً)
+</script>
+{% endblock %}

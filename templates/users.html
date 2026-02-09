@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-users me-2"></i> إدارة المستخدمين</h2>
+    {% if current_user.can('users', 'edit') %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <i class="fas fa-plus me-1"></i> إضافة مستخدم
+    </button>
+    {% endif %}
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>اسم المستخدم</th>
+                        <th>الدور (Role)</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle bg-light text-primary me-2">
+                                    {{ user.username[0] | upper }}
+                                </div>
+                                {{ user.username }}
+                                {% if user.is_banned %}
+                                    <span class="badge bg-danger ms-2"><i class="fas fa-ban me-1"></i> محظور</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if user.user_role %}
+                                <span class="badge bg-info text-dark">{{ user.user_role.name }}</span>
+                            {% elif user.role == 'admin' %}
+                                <span class="badge bg-danger">مسؤول (Admin)</span>
+                            {% else %}
+                                <span class="badge bg-secondary">مستخدم (User)</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if current_user.can('users', 'edit') %}
+                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% if user.id != current_user.id %}
+                                {% if user.is_banned %}
+                                    <a href="{{ url_for('toggle_user_ban', user_id=user.id) }}" class="btn btn-sm btn-outline-warning me-1" title="إلغاء الحظر">
+                                        <i class="fas fa-user-check"></i>
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('toggle_user_ban', user_id=user.id) }}" class="btn btn-sm btn-outline-secondary me-1" title="حظر المستخدم" onclick="return confirm('هل أنت متأكد من حظر هذا المستخدم؟ سيتم منعه من تسجيل الدخول.');">
+                                        <i class="fas fa-ban"></i>
+                                    </a>
+                                {% endif %}
+                                <a href="{{ url_for('delete_user', user_id=user.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف هذا المستخدم؟');">
+                                    <i class="fas fa-trash-alt"></i>
+                                </a>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4 text-muted">
+                            لا يوجد مستخدمين إضافيين
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Modal Add User -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إضافة مستخدم جديد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('add_user') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">اسم المستخدم</label>
+                        <input type="text" class="form-control" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">كلمة المرور</label>
+                        <input type="password" class="form-control" name="password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الدور (Role)</label>
+                        <select class="form-select" name="role_id" required>
+                            {% for role in roles %}
+                            <option value="{{ role.id }}">{{ role.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <hr>
+                    <h6 class="text-muted mb-3">بيانات العميل (اختياري)</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">اسم العميل (الاسم الكامل)</label>
+                            <input type="text" class="form-control" name="client_name">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">اسم الشركة</label>
+                            <input type="text" class="form-control" name="company_name">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">رقم الهاتف</label>
+                            <input type="text" class="form-control" name="phone">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">وسيلة التواصل المفضلة</label>
+                            <select class="form-select" name="communication_method">
+                                <option value="whatsapp">واتس آب</option>
+                                <option value="facebook">فيس بوك</option>
+                                <option value="telegram">تليجرام</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ملاحظات</label>
+                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modals Edit User -->
+{% for user in users %}
+<div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تعديل المستخدم: {{ user.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('edit_user', user_id=user.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">اسم المستخدم</label>
+                        <input type="text" class="form-control" name="username" value="{{ user.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">كلمة المرور الجديدة (اختياري)</label>
+                        <input type="password" class="form-control" name="password" placeholder="اتركه فارغاً إذا لم ترد التغيير">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الدور (Role)</label>
+                        <select class="form-select" name="role_id" required>
+                            {% for role in roles %}
+                            <option value="{{ role.id }}" {% if user.role_id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <hr>
+                    <h6 class="text-muted mb-3">بيانات العميل</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">اسم العميل</label>
+                            <input type="text" class="form-control" name="client_name" value="{{ user.client.name if user.client else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">اسم الشركة</label>
+                            <input type="text" class="form-control" name="company_name" value="{{ user.client.company_name if user.client else '' }}">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">رقم الهاتف</label>
+                            <input type="text" class="form-control" name="phone" value="{{ user.client.phone if user.client else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">وسيلة التواصل المفضلة</label>
+                            <select class="form-select" name="communication_method">
+                                <option value="whatsapp" {% if user.client and user.client.communication_method == 'whatsapp' %}selected{% endif %}>واتس آب</option>
+                                <option value="facebook" {% if user.client and user.client.communication_method == 'facebook' %}selected{% endif %}>فيس بوك</option>
+                                <option value="telegram" {% if user.client and user.client.communication_method == 'telegram' %}selected{% endif %}>تليجرام</option>
+                                <option value="other" {% if user.client and user.client.communication_method == 'other' %}selected{% endif %}>أخرى</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ملاحظات</label>
+                        <textarea class="form-control" name="notes" rows="2">{{ user.client.notes if user.client else '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block header_title %}إعدادات تنبيهات تليجرام{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white border-bottom-0 py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 text-primary fw-bold"><i class="fab fa-telegram me-2"></i> إعدادات البوت والتنبيهات</h5>
+                    <a href="{{ url_for('settings') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left me-1"></i> العودة للإعدادات العامة
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <fieldset {% if not current_user.can('settings', 'edit') %}disabled{% endif %}>
+                    
+                    <div class="alert alert-light border shadow-sm mb-4">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <i class="fas fa-info-circle text-info fa-2x"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold">كيفية الإعداد</h6>
+                                <p class="mb-0 small text-muted">
+                                    1. أنشئ بوت جديد عبر مراسلة <a href="https://t.me/BotFather" target="_blank" class="text-decoration-none">@BotFather</a> للحصول على <strong>Bot Token</strong>.<br>
+                                    2. ابدأ محادثة مع البوت الخاص بك.<br>
+                                    3. احصل على <strong>Chat ID</strong> الخاص بك عبر مراسلة <a href="https://t.me/userinfobot" target="_blank" class="text-decoration-none">@userinfobot</a>.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="telegram_bot_token" class="form-label fw-bold">توكن البوت (Bot Token)</label>
+                            <input type="text" class="form-control" id="telegram_bot_token" name="telegram_bot_token" value="{{ settings.telegram_bot_token or '' }}" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="telegram_chat_id" class="form-label fw-bold">معرف المحادثة (Chat ID)</label>
+                            <input type="text" class="form-control" id="telegram_chat_id" name="telegram_chat_id" value="{{ settings.telegram_chat_id or '' }}" placeholder="123456789">
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                        <i class="fas fa-bell me-2"></i> خيارات التنبيهات
+                    </h5>
+                    
+                    <div class="row mb-3 bg-light p-3 rounded mx-0">
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="telegram_notify_start_stop" name="telegram_notify_start_stop" {% if settings.telegram_notify_start_stop %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="telegram_notify_start_stop">تنبيه عند بدء/إيقاف/انتهاء الحملة</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="telegram_notify_progress" name="telegram_notify_progress" {% if settings.telegram_notify_progress %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="telegram_notify_progress">تنبيه دوري لنسبة التقدم</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="telegram_notify_each_call" name="telegram_notify_each_call" {% if settings.telegram_notify_each_call %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="telegram_notify_each_call">تنبيه عند انتهاء كل مكالمة</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label for="telegram_notify_interval" class="form-label fw-bold">فاصل التنبيه الدوري (دقائق)</label>
+                            <input type="number" class="form-control" id="telegram_notify_interval" name="telegram_notify_interval" value="{{ settings.telegram_notify_interval }}">
+                        </div>
+                    </div>
+
+                    <h5 class="mb-3 text-primary border-bottom pb-2 mt-4">
+                        <i class="fas fa-file-alt me-2"></i> قوالب الرسائل (Templates)
+                    </h5>
+                    
+                    <div class="alert alert-secondary small mb-3">
+                        <strong>المتغيرات المتاحة للاستخدام في القوالب:</strong><br>
+                        <code>{campaign_name}</code> اسم الحملة | 
+                        <code>{campaign_id}</code> رقم الحملة | 
+                        <code>{total_contacts}</code> إجمالي الأرقام | 
+                        <code>{dialed}</code> تم الاتصال | 
+                        <code>{answered}</code> تم الرد | 
+                        <code>{progress}</code> نسبة التقدم %
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="telegram_template_start" class="form-label fw-bold">قالب رسالة بدء الحملة</label>
+                        <textarea class="form-control" id="telegram_template_start" name="telegram_template_start" rows="2">{{ settings.telegram_template_start or '🚀 تم بدء الحملة: {campaign_name}\nعدد الأرقام: {total_contacts}' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="telegram_template_finish" class="form-label fw-bold">قالب رسالة انتهاء الحملة</label>
+                        <textarea class="form-control" id="telegram_template_finish" name="telegram_template_finish" rows="2">{{ settings.telegram_template_finish or '✅ اكتملت الحملة: {campaign_name}\n📊 النتائج:\nتم الرد: {answered}/{dialed}' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="telegram_template_progress" class="form-label fw-bold">قالب رسالة التقدم الدوري</label>
+                        <textarea class="form-control" id="telegram_template_progress" name="telegram_template_progress" rows="2">{{ settings.telegram_template_progress or '📊 تقرير التقدم - {campaign_name}\nنسبة الإنجاز: {progress}%' }}</textarea>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4 pt-3 border-top">
+                        {% if current_user.can('settings', 'edit') %}
+                        <a href="{{ url_for('test_telegram') }}" class="btn btn-outline-info px-4 me-2">
+                            <i class="fab fa-telegram-plane me-2"></i> اختبار الاتصال
+                        </a>
+                        <button type="submit" class="btn btn-primary px-5">
+                            <i class="fas fa-save me-2"></i> حفظ التغييرات
+                        </button>
+                        {% endif %}
+                    </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

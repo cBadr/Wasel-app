@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block header_title %}التقارير والإحصائيات{% endblock %}
+
+{% block content %}
+<div class="row mb-4 fade-in-up">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-0">
+                <h5 class="mb-0 fw-bold text-primary"><i class="fas fa-filter me-2"></i> تصفية التقارير</h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('reports') }}" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="campaign_id" class="form-label text-muted small fw-bold">الحملة</label>
+                        <select class="form-select" id="campaign_id" name="campaign_id">
+                            <option value="">-- كل الحملات --</option>
+                            {% for campaign in campaigns %}
+                            <option value="{{ campaign.id }}" {% if selected_campaign_id|string == campaign.id|string %}selected{% endif %}>{{ campaign.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="phone" class="form-label text-muted small fw-bold">بحث بالرقم</label>
+                        <input type="text" class="form-control" id="phone" name="phone" value="{{ phone or '' }}" placeholder="أدخل الرقم...">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="status" class="form-label text-muted small fw-bold">حالة الاتصال</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">-- الكل --</option>
+                            <option value="answered" {% if status == 'answered' %}selected{% endif %}>تم الرد</option>
+                            <option value="busy" {% if status == 'busy' %}selected{% endif %}>مشغول</option>
+                            <option value="failed" {% if status == 'failed' %}selected{% endif %}>فشل</option>
+                            <option value="no answer" {% if status == 'no answer' %}selected{% endif %}>لا يوجد رد</option>
+                            <option value="pending" {% if status == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="min_duration" class="form-label text-muted small fw-bold">مدة (من)</label>
+                        <input type="number" class="form-control" id="min_duration" name="min_duration" value="{{ min_duration or '' }}" placeholder="ثواني">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="max_duration" class="form-label text-muted small fw-bold">مدة (إلى)</label>
+                        <input type="number" class="form-control" id="max_duration" name="max_duration" value="{{ max_duration or '' }}" placeholder="ثواني">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="start_date" class="form-label text-muted small fw-bold">من تاريخ</label>
+                        <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="end_date" class="form-label text-muted small fw-bold">إلى تاريخ</label>
+                        <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary rounded-pill shadow-sm">
+                                <i class="fas fa-search me-1"></i> عرض
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if stats %}
+<div class="row mb-4 fade-in-up" style="animation-delay: 0.1s;">
+    <!-- ملخص الأداء -->
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 bg-primary text-white position-relative overflow-hidden">
+            <div class="card-body">
+                <h6 class="text-uppercase opacity-75 small fw-bold">إجمالي المحاولات</h6>
+                <h2 class="display-4 fw-bold mb-0">{{ stats.total_dialed }}</h2>
+                <i class="fas fa-phone-alt position-absolute bottom-0 end-0 opacity-25 fa-5x me-n3 mb-n3"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 bg-success text-white position-relative overflow-hidden">
+            <div class="card-body">
+                <h6 class="text-uppercase opacity-75 small fw-bold">تم الرد (Answered)</h6>
+                <h2 class="display-4 fw-bold mb-0">{{ stats.answered }}</h2>
+                <i class="fas fa-check-circle position-absolute bottom-0 end-0 opacity-25 fa-5x me-n3 mb-n3"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 bg-info text-white position-relative overflow-hidden">
+            <div class="card-body">
+                <h6 class="text-uppercase opacity-75 small fw-bold">نسبة الرد (ASR)</h6>
+                <h2 class="display-4 fw-bold mb-0">{{ stats.asr }}%</h2>
+                <i class="fas fa-chart-line position-absolute bottom-0 end-0 opacity-25 fa-5x me-n3 mb-n3"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100 bg-warning text-dark position-relative overflow-hidden">
+            <div class="card-body">
+                <h6 class="text-uppercase opacity-75 small fw-bold">متوسط المدة (ACD)</h6>
+                <h2 class="display-4 fw-bold mb-0">{{ stats.acd }} <small class="fs-6">ثانية</small></h2>
+                <i class="fas fa-stopwatch position-absolute bottom-0 end-0 opacity-25 fa-5x me-n3 mb-n3"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row fade-in-up" style="animation-delay: 0.2s;">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-secondary"><i class="fas fa-table me-2"></i> تفاصيل الاتصالات</h5>
+                <a href="{{ url_for('export_report', campaign_id=selected_campaign_id, start_date=start_date, end_date=end_date, phone=phone, status=status, min_duration=min_duration, max_duration=max_duration) }}" class="btn btn-success btn-sm rounded-pill shadow-sm">
+                    <i class="fas fa-file-excel me-1"></i> تصدير إلى Excel
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>الحملة</th>
+                                <th>رقم الهاتف</th>
+                                <th>الحالة</th>
+                                <th>المدة (ث)</th>
+                                <th>وقت الاتصال</th>
+                                <th>المحاولات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contact in contacts %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ contact.campaign.name }}</span></td>
+                                <td class="font-monospace">{{ contact.phone_number }}</td>
+                                <td>
+                                    {% if contact.status == 'answered' %}
+                                        <span class="badge bg-success">تم الرد</span>
+                                    {% elif contact.status == 'failed' %}
+                                        <span class="badge bg-danger">فشل</span>
+                                    {% elif contact.status == 'dialed' %}
+                                        <span class="badge bg-info text-dark">جاري الاتصال</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ contact.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ contact.duration }}</td>
+                                <td>{{ contact.last_dialed.strftime('%Y-%m-%d %H:%M:%S') if contact.last_dialed else '-' }}</td>
+                                <td>{{ contact.retries }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted">لا توجد بيانات للعرض</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

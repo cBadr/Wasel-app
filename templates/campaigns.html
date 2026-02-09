@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block header_title %}إدارة الحملات{% endblock %}
+
+{% block content %}
+{% if current_user.can('campaigns', 'edit') %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <div><i class="fas fa-plus-circle me-2"></i> إنشاء حملة جديدة</div>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('create_campaign') }}" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="name" class="form-label">اسم الحملة</label>
+                        <input type="text" class="form-control" id="name" name="name" placeholder="أدخل اسم الحملة هنا..." required>
+                        <div class="form-text">إسم الحملة الذي سيتم عرضه في التطبيق</div>
+
+                    </div>
+                    <div class="col-md-4">
+                        <label for="target_queue" class="form-label">رقم الحملة</label>
+                        <input type="text" class="form-control" id="target_queue" name="target_queue" placeholder="أدخل رقم الحملة..." required>
+                        <div class="form-text">رقم الحملة (مثال: 348620)</div>
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-2"></i> حفظ الحملة
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <div><i class="fas fa-list-alt me-2"></i> الحملات الحالية</div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>اسم الحملة</th>
+                                <th>رقم الحملة</th>
+                                <th>تاريخ الإنشاء</th>
+                                <th>الحالة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campaign in campaigns %}
+                            <tr class="{{ 'table-danger' if campaign.is_locked else '' }}">
+                                <td>{{ campaign.id }}</td>
+                                <td class="fw-bold">
+                                    {{ campaign.name }}
+                                    {% if campaign.is_locked %}
+                                        <i class="fas fa-lock text-danger ms-1" title="مغلقة من قبل الأدمن"></i>
+                                    {% endif %}
+                                </td>
+                                <td><span class="badge bg-light text-dark border">{{ campaign.target_queue }}</span></td>
+                                <td>{{ campaign.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {% if campaign.status == 'active' %}
+                                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> نشطة</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="fas fa-pause-circle me-1"></i> متوقفة</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        {% if current_user.can('campaigns', 'edit') %}
+                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editCampaignModal{{ campaign.id }}" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% if campaign.status == 'active' %}
+                                            <a href="{{ url_for('toggle_campaign', campaign_id=campaign.id) }}" class="btn btn-sm btn-outline-warning" title="إيقاف">
+                                                <i class="fas fa-pause"></i>
+                                            </a>
+                                        {% else %}
+                                            {% if campaign.is_locked %}
+                                                <button class="btn btn-sm btn-outline-secondary" disabled title="تم قفل الحملة من قبل المسؤول">
+                                                    <i class="fas fa-lock"></i>
+                                                </button>
+                                            {% else %}
+                                                <a href="{{ url_for('toggle_campaign', campaign_id=campaign.id) }}" class="btn btn-sm btn-outline-success" title="تفعيل">
+                                                    <i class="fas fa-play"></i>
+                                                </a>
+                                            {% endif %}
+                                        {% endif %}
+                                        
+                                        {% if current_user.role == 'admin' or (current_user.user_role and current_user.user_role.name == 'Admin') %}
+                                            {% if campaign.is_locked %}
+                                                <a href="{{ url_for('toggle_campaign_lock', campaign_id=campaign.id) }}" class="btn btn-sm btn-warning" title="إلغاء القفل">
+                                                    <i class="fas fa-unlock"></i>
+                                                </a>
+                                            {% else %}
+                                                <a href="{{ url_for('toggle_campaign_lock', campaign_id=campaign.id) }}" class="btn btn-sm btn-outline-dark" title="قفل الحملة">
+                                                    <i class="fas fa-lock"></i>
+                                                </a>
+                                            {% endif %}
+                                        {% endif %}
+                                        
+                                        {% endif %}
+                                        {% if current_user.can('contacts', 'view') %}
+                                        <a href="{{ url_for('view_campaign', campaign_id=campaign.id) }}" class="btn btn-sm btn-outline-primary" title="عرض الأرقام">
+                                            <i class="fas fa-users"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if current_user.can('campaigns', 'edit') %}
+                                        <a href="{{ url_for('delete_campaign', campaign_id=campaign.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف هذه الحملة؟')" title="حذف">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">
+                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                    لا توجد حملات حالياً
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+<!-- Modals for Editing Campaigns -->
+{% for campaign in campaigns %}
+<div class="modal fade" id="editCampaignModal{{ campaign.id }}" tabindex="-1" aria-labelledby="editCampaignModalLabel{{ campaign.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editCampaignModalLabel{{ campaign.id }}">تعديل الحملة: {{ campaign.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('edit_campaign', campaign_id=campaign.id) }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name{{ campaign.id }}" class="form-label">اسم الحملة</label>
+                        <input type="text" class="form-control" id="name{{ campaign.id }}" name="name" value="{{ campaign.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="target_queue{{ campaign.id }}" class="form-label">رقم الحملة</label>
+                        <input type="text" class="form-control" id="target_queue{{ campaign.id }}" name="target_queue" value="{{ campaign.target_queue }}" required>
+                        <div class="form-text">رقم الحملة (مثال: 74b87337454200d4d33f80c4663dc5e5)</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

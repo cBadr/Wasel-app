@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block header_title %}إدارة جهات الاتصال - {{ campaign.name }}{% endblock %}
+
+{% block content %}
+{% if current_user.can('contacts', 'edit') %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div><i class="fas fa-file-upload me-2"></i> إضافة أرقام جديدة</div>
+                <a href="{{ url_for('campaigns') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-arrow-right me-1"></i> عودة للحملات
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6 border-start ps-4">
+                        <h6 class="text-muted mb-3">إضافة رقم فردي</h6>
+                        <form method="POST" action="{{ url_for('add_contact', campaign_id=campaign.id) }}" class="d-flex gap-2">
+                            <input type="text" class="form-control" name="phone_number" placeholder="رقم الهاتف" required>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> إضافة
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-6 pe-4">
+                        <h6 class="text-muted mb-3">رفع ملف CSV</h6>
+                        <form method="POST" action="{{ url_for('upload_contacts', campaign_id=campaign.id) }}" enctype="multipart/form-data" class="d-flex gap-2">
+                            <input type="file" class="form-control" name="file" accept=".csv" required>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload"></i> رفع
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div><i class="fas fa-address-book me-2"></i> قائمة الأرقام</div>
+                <span class="badge bg-primary rounded-pill">{{ contacts|length }} رقم</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>رقم الهاتف</th>
+                                <th>الحالة</th>
+                                <th>عدد المحاولات</th>
+                                <th>المدة (ث)</th>
+                                <th>آخر محاولة</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contact in contacts %}
+                            <tr>
+                                <td>{{ contact.id }}</td>
+                                <td class="fw-bold text-primary">{{ contact.phone_number }}</td>
+                                <td>
+                                    {% if contact.status == 'pending' %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i> انتظار</span>
+                                    {% elif contact.status == 'dialed' %}
+                                        <span class="badge bg-info"><i class="fas fa-phone me-1"></i> تم الطلب</span>
+                                    {% elif contact.status == 'answered' %}
+                                        <span class="badge bg-success"><i class="fas fa-check me-1"></i> تم الرد</span>
+                                    {% elif contact.status == 'failed' %}
+                                        <span class="badge bg-danger"><i class="fas fa-times me-1"></i> فشل</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">{{ contact.retries }}</span>
+                                </td>
+                                <td>{{ contact.duration }}</td>
+                                <td class="text-muted small">
+                                    {% if contact.last_dialed %}
+                                        {{ contact.last_dialed.strftime('%Y-%m-%d %H:%M:%S') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if current_user.can('contacts', 'edit') %}
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editContactModal{{ contact.id }}" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <a href="{{ url_for('delete_contact', contact_id=contact.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('حذف هذا الرقم؟')" title="حذف">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </a>
+                                        <a href="{{ url_for('block_contact', contact_id=contact.id) }}" class="btn btn-sm btn-outline-dark" onclick="return confirm('هل أنت متأكد من حظر هذا الرقم وإضافته للقائمة السوداء؟')" title="حظر">
+                                            <i class="fas fa-ban"></i>
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-4 text-muted">
+                                    <i class="fas fa-users-slash fa-2x mb-2 d-block"></i>
+                                    لا توجد أرقام في هذه الحملة
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+<!-- Modals Loop -->
+{% for contact in contacts %}
+<div class="modal fade" id="editContactModal{{ contact.id }}" tabindex="-1" aria-labelledby="editContactLabel{{ contact.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editContactLabel{{ contact.id }}">تعديل جهة الاتصال</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('edit_contact', contact_id=contact.id) }}">
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label for="phone{{ contact.id }}" class="form-label">رقم الهاتف</label>
+                        <input type="text" class="form-control" id="phone{{ contact.id }}" name="phone_number" value="{{ contact.phone_number }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="status{{ contact.id }}" class="form-label">الحالة</label>
+                        <select class="form-select" id="status{{ contact.id }}" name="status">
+                            <option value="pending" {% if contact.status == 'pending' %}selected{% endif %}>انتظار (Pending)</option>
+                            <option value="dialed" {% if contact.status == 'dialed' %}selected{% endif %}>تم الطلب (Dialed)</option>
+                            <option value="answered" {% if contact.status == 'answered' %}selected{% endif %}>تم الرد (Answered)</option>
+                            <option value="failed" {% if contact.status == 'failed' %}selected{% endif %}>فشل (Failed)</option>
+                            <option value="retry" {% if contact.status == 'retry' %}selected{% endif %}>إعادة محاولة (Retry)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="retries{{ contact.id }}" class="form-label">عدد المحاولات</label>
+                        <input type="number" class="form-control" id="retries{{ contact.id }}" name="retries" value="{{ contact.retries }}" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

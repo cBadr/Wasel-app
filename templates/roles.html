@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-user-shield me-2"></i> إدارة الأدوار والصلاحيات</h2>
+    {% if current_user.can('roles', 'edit') %}
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+        <i class="fas fa-plus me-1"></i> إضافة دور جديد
+    </button>
+    {% endif %}
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>اسم الدور</th>
+                        <th>الصلاحيات</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for role in roles %}
+                    <tr>
+                        <td>{{ role.id }}</td>
+                        <td>{{ role.name }}</td>
+                        <td>
+                            <small class="text-muted">
+                                {% set perms = role.get_permissions() %}
+                                {% for res, access in perms.items() %}
+                                    {% if access != 'none' %}
+                                        <span class="badge bg-secondary me-1">
+                                            {% if res == 'campaigns' %}الحملات
+                                            {% elif res == 'contacts' %}جهات الاتصال
+                                            {% elif res == 'monitor' %}المراقبة
+                                            {% elif res == 'settings' %}الإعدادات
+                                            {% elif res == 'users' %}المستخدمين
+                                            {% elif res == 'roles' %}الأدوار
+                                            {% elif res == 'monitor_queues' %}حالة الطوابير
+                                            {% elif res == 'monitor_trunks' %}حالة الترانكات
+                                            {% elif res == 'monitor_dongles' %}حالة الدونجلات
+                                            {% elif res == 'database' %}قاعدة البيانات
+                                            {% elif res == 'packages' %}الباقات والعروض
+                                            {% elif res == 'command_screen' %}شاشة الأوامر
+                                            {% elif res == 'test_call' %}اتصال تجريبي
+                                            {% else %}{{ res }}{% endif %}
+                                            : 
+                                            {% if access == 'view' %}مشاهدة{% else %}تعديل{% endif %}
+                                        </span>
+                                    {% endif %}
+                                {% endfor %}
+                            </small>
+                        </td>
+                        <td>
+                            {% if current_user.can('roles', 'edit') %}
+                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editRoleModal{{ role.id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% if role.name != 'Admin' %}
+                            <a href="{{ url_for('delete_role', role_id=role.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد من حذف هذا الدور؟');">
+                                <i class="fas fa-trash-alt"></i>
+                            </a>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- Add Role Modal -->
+<div class="modal fade" id="addRoleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إضافة دور جديد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('add_role') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">اسم الدور</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <h6>الصلاحيات</h6>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>القسم</th>
+                                <th>مشاهدة فقط</th>
+                                <th>مشاهدة وتعديل</th>
+                                <th>لا يوجد صلاحية</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for resource in ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call'] %}
+                            <tr>
+                                <td>
+                                    {% if resource == 'campaigns' %}الحملات
+                                    {% elif resource == 'contacts' %}جهات الاتصال
+                                    {% elif resource == 'monitor' %}المراقبة (عام)
+                                    {% elif resource == 'settings' %}الإعدادات
+                                    {% elif resource == 'users' %}المستخدمين
+                                    {% elif resource == 'roles' %}الأدوار
+                                    {% elif resource == 'monitor_queues' %}حالة الطوابير
+                                    {% elif resource == 'monitor_trunks' %}حالة الترانكات
+                                    {% elif resource == 'monitor_dongles' %}حالة الدونجلات
+                                    {% elif resource == 'database' %}قاعدة البيانات
+                                    {% elif resource == 'packages' %}الباقات والعروض
+                                    {% elif resource == 'command_screen' %}شاشة الأوامر
+                                    {% elif resource == 'test_call' %}اتصال تجريبي
+                                    {% else %}{{ resource }}{% endif %}
+                                </td>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="perm_{{ resource }}" value="view" id="perm_{{ resource }}_view">
+                                        <label class="form-check-label" for="perm_{{ resource }}_view">مشاهدة</label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="perm_{{ resource }}" value="edit" id="perm_{{ resource }}_edit">
+                                        <label class="form-check-label" for="perm_{{ resource }}_edit">تعديل</label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="perm_{{ resource }}" value="none" id="perm_{{ resource }}_none" checked>
+                                        <label class="form-check-label" for="perm_{{ resource }}_none">منع</label>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Role Modals -->
+{% for role in roles %}
+<div class="modal fade" id="editRoleModal{{ role.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تعديل الدور: {{ role.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('edit_role', role_id=role.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">اسم الدور</label>
+                        <input type="text" class="form-control" name="name" value="{{ role.name }}" required>
+                    </div>
+                    <h6>الصلاحيات</h6>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>القسم</th>
+                                <th>مشاهدة فقط</th>
+                                <th>مشاهدة وتعديل</th>
+                                <th>لا يوجد صلاحية</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set role_perms = role.get_permissions() %}
+                            {% for resource in ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call'] %}
+                            <tr>
+                                <td>
+                                    {% if resource == 'campaigns' %}الحملات
+                                    {% elif resource == 'contacts' %}جهات الاتصال
+                                    {% elif resource == 'monitor' %}المراقبة (عام)
+                                    {% elif resource == 'settings' %}الإعدادات
+                                    {% elif resource == 'users' %}المستخدمين
+                                    {% elif resource == 'roles' %}الأدوار
+                                    {% elif resource == 'monitor_queues' %}حالة الطوابير
+                                    {% elif resource == 'monitor_trunks' %}حالة الترانكات
+                                    {% elif resource == 'monitor_dongles' %}حالة الدونجلات
+                                    {% elif resource == 'database' %}قاعدة البيانات
+                                    {% elif resource == 'packages' %}الباقات والعروض
+                                    {% elif resource == 'command_screen' %}شاشة الأوامر
+                                    {% elif resource == 'test_call' %}اتصال تجريبي
+                                    {% else %}{{ resource }}{% endif %}
+                                </td>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="perm_{{ resource }}" value="view" {% if role_perms.get(resource) == 'view' %}checked{% endif %}>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="perm_{{ resource }}" value="edit" {% if role_perms.get(resource) == 'edit' %}checked{% endif %}>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="perm_{{ resource }}" value="none" {% if role_perms.get(resource) == 'none' or not role_perms.get(resource) %}checked{% endif %}>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
