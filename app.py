@@ -1,7 +1,7 @@
 import notifications
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from models import db, Campaign, Contact, Settings, User, Role, Client, Blacklist
+from models import db, Campaign, Contact, Settings, User, Role, Client, Blacklist, TestCallHistory
 from functools import wraps
 import os
 import socket
@@ -398,13 +398,27 @@ def add_contact(campaign_id):
         flash('لا تملك صلاحية إضافة جهات اتصال لهذه الحملة', 'danger')
         return redirect(url_for('campaigns'))
         
-    phone = request.form.get('phone_number')
-    if phone:
-        # يمكن إضافة تحقق من صحة الرقم هنا
-        new_contact = Contact(phone_number=phone, campaign_id=campaign_id)
-        db.session.add(new_contact)
+    phones_str = request.form.get('phone_numbers')
+    if phones_str:
+        # تقسيم النص إلى أسطر
+        lines = phones_str.splitlines()
+        added_count = 0
+        for line in lines:
+            phone = line.strip()
+            if phone:
+                # التحقق من عدم التكرار داخل الحملة
+                exists = Contact.query.filter_by(campaign_id=campaign_id, phone_number=phone).first()
+                if not exists:
+                    new_contact = Contact(phone_number=phone, campaign_id=campaign_id)
+                    db.session.add(new_contact)
+                    added_count += 1
+        
         db.session.commit()
-        flash('تم إضافة الرقم بنجاح', 'success')
+        if added_count > 0:
+            flash(f'تم إضافة {added_count} رقم بنجاح', 'success')
+        else:
+            flash('لم يتم إضافة أي أرقام (قد تكون مكررة أو فارغة)', 'warning')
+            
     return redirect(url_for('view_campaign', campaign_id=campaign_id))
 
 @app.route('/campaign/<int:campaign_id>/upload', methods=['POST'])
@@ -526,6 +540,10 @@ def settings():
         config.max_retries = int(request.form.get('max_retries', 3))
         config.retry_interval = int(request.form.get('retry_interval', 60))
         config.monitor_extension = request.form.get('monitor_extension', '100')
+        try:
+            config.test_call_limit = int(request.form.get('test_call_limit', 1))
+        except:
+            config.test_call_limit = 1
         
         # إعدادات CDR
         config.cdr_db_host = request.form.get('cdr_db_host')
@@ -764,6 +782,7 @@ def api_stats():
         
         return jsonify({
             'status': 'active',
+            'campaign_id': active_campaign.id,
             'campaign_name': active_campaign.name,
             'total': total,
             'pending': pending,
@@ -772,9 +791,29 @@ def api_stats():
             'failed': failed
         })
     else:
+        # Check for paused campaign
+        paused_campaign = Campaign.query.filter_by(status='paused', user_id=current_user.id if not is_admin else Campaign.user_id).order_by(Campaign.updated_at.desc()).first()
+        if paused_campaign:
+             total = Contact.query.filter_by(campaign_id=paused_campaign.id).count()
+             pending = Contact.query.filter_by(campaign_id=paused_campaign.id, status='pending').count()
+             dialed = Contact.query.filter_by(campaign_id=paused_campaign.id, status='dialed').count()
+             answered = Contact.query.filter_by(campaign_id=paused_campaign.id, status='answered').count()
+             failed = Contact.query.filter_by(campaign_id=paused_campaign.id, status='failed').count()
+             return jsonify({
+                'status': 'paused',
+                'campaign_id': paused_campaign.id,
+                'campaign_name': paused_campaign.name,
+                'total': total,
+                'pending': pending,
+                'dialed': dialed,
+                'answered': answered,
+                'failed': failed
+            })
+            
         # إذا لم تكن هناك حملة نشطة، نرجع إجماليات عامة أو حالة خاملة
         return jsonify({
             'status': 'idle',
+            'campaign_id': None,
             'campaign_name': 'لا توجد حملة نشطة',
             'total': 0,
             'pending': 0,
@@ -782,6 +821,40 @@ def api_stats():
             'answered': 0,
             'failed': 0
         })
+
+@app.route('/api/campaign/<int:campaign_id>/status', methods=['POST'])
+@login_required
+@requires_permission('campaigns', 'edit')
+def api_campaign_status(campaign_id):
+    campaign = Campaign.query.get_or_404(campaign_id)
+    
+    # Check ownership or admin
+    if campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+        return jsonify({'success': False, 'message': 'Permission denied'})
+
+    data = request.get_json()
+    new_status = data.get('status')
+    
+    if new_status not in ['active', 'paused']:
+        return jsonify({'success': False, 'message': 'Invalid status'})
+        
+    # Check if locked
+    if campaign.is_locked:
+         is_admin = current_user.role == 'admin' or (current_user.user_role and current_user.user_role.name == 'Admin')
+         if not is_admin:
+             return jsonify({'success': False, 'message': 'Campaign is locked by admin'})
+
+    campaign.status = new_status
+    db.session.commit()
+    
+    # Send notification if needed (reusing logic)
+    config = Settings.query.first()
+    if config and config.telegram_bot_token and config.telegram_chat_id and config.telegram_notify_start_stop:
+        msg = notifications.format_campaign_status_message(campaign.name, campaign.status)
+        notifications.send_telegram_message(config.telegram_bot_token, config.telegram_chat_id, msg)
+
+    return jsonify({'success': True, 'message': f'Campaign status updated to {new_status}'})
+
 
 @app.route('/logs')
 @login_required
@@ -1543,8 +1616,26 @@ def test_call_501():
              
         ami = SimpleAMI(settings.ami_host, settings.ami_port, settings.ami_user, settings.ami_secret)
         if ami.connect():
-            # استخدام SimpleAMI لإرسال أمر Originate
-            # يتم الاتصال بالرقم ثم تحويله إلى الكيو 501
+            # التحقق من الحد المسموح
+            current_count = TestCallHistory.query.filter_by(phone_number=phone).count()
+            limit = settings.test_call_limit if settings.test_call_limit else 1
+            
+            # إذا تجاوز الحد ولم يكن محظوراً (حالة نادرة أو تم تغيير الحد)
+            if current_count >= limit:
+                existing = Blacklist.query.filter_by(phone_number=phone).first()
+                if not existing:
+                    new_entry = Blacklist(
+                        phone_number=phone,
+                        reason='تم تجاوز حد الاتصال التجريبي',
+                        blocked_by=current_user.username if hasattr(current_user, 'username') else 'Unknown'
+                    )
+                    db.session.add(new_entry)
+                    db.session.commit()
+                    flash(f'تم تجاوز الحد المسموح ({limit}) لهذا الرقم وتم حظره.', 'warning')
+                else:
+                    flash(f'هذا الرقم محظور بالفعل وتجاوز الحد المسموح ({limit}).', 'warning')
+                return redirect(url_for('test_call_501'))
+
             channel = f"Local/{phone}@from-internal"
             
             success = ami.originate_call(
@@ -1556,24 +1647,33 @@ def test_call_501():
             )
             
             if success:
-                # إضافة الرقم للقائمة السوداء
-                existing = Blacklist.query.filter_by(phone_number=phone).first()
-                if not existing:
-                    new_entry = Blacklist(
-                        phone_number=phone,
-                        reason='تم إجراء الإتصال التجريبي'
-                    )
-                    db.session.add(new_entry)
-                    db.session.commit()
-                    flash(f'تم بدء الاتصال بالرقم {phone} وإضافته لقائمة الحظر بنجاح.', 'success')
+                # تسجيل المحاولة
+                hist = TestCallHistory(phone_number=phone, user_id=current_user.id)
+                db.session.add(hist)
+                
+                # التحقق هل وصلنا للحد الأقصى بعد هذه المحاولة
+                if current_count + 1 >= limit:
+                    existing = Blacklist.query.filter_by(phone_number=phone).first()
+                    if not existing:
+                        new_entry = Blacklist(
+                            phone_number=phone,
+                            reason='تم إجراء الإتصال التجريبي (تجاوز الحد)',
+                            blocked_by=current_user.username if hasattr(current_user, 'username') else 'Unknown'
+                        )
+                        db.session.add(new_entry)
+                        db.session.commit()
+                        flash(f'تم بدء الاتصال بالرقم {phone} (المحاولة {current_count + 1}/{limit}) وإضافته لقائمة الحظر.', 'success')
+                    else:
+                        db.session.commit() # لحفظ السجل
+                        flash(f'تم بدء الاتصال بالرقم {phone}. الرقم موجود بالفعل في قائمة الحظر.', 'warning')
                 else:
-                    flash(f'تم بدء الاتصال بالرقم {phone}. الرقم موجود بالفعل في قائمة الحظر.', 'warning')
+                    db.session.commit()
+                    flash(f'تم بدء الاتصال بالرقم {phone} (المحاولة {current_count + 1}/{limit}).', 'success')
             else:
                 flash('فشل إرسال أمر الاتصال. تحقق من سجلات Asterisk.', 'danger')
                 
         else:
             flash('فشل الاتصال بـ AMI. تأكد من تشغيل Asterisk والإعدادات.', 'danger')
-            
     return render_template('test_call_501.html')
 
 if __name__ == '__main__':

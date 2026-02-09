@@ -134,6 +134,9 @@ class Settings(db.Model):
     # إعدادات المراقبة
     monitor_extension = db.Column(db.String(20), default='100')      # رقم التحويلة المستخدمة للمراقبة (ChanSpy)
 
+    # إعدادات الاتصال التجريبي
+    test_call_limit = db.Column(db.Integer, default=1) # عدد مرات التجربة قبل الحظر
+
 class Campaign(db.Model):
     """
     نموذج الحملات الإعلانية
@@ -166,9 +169,19 @@ class Contact(db.Model):
 
 class Blacklist(db.Model):
     """
-    نموذج القائمة السوداء (الأرقام المحظورة)
+    القائمة السوداء للأرقام المحظورة
     """
     id = db.Column(db.Integer, primary_key=True)
-    phone_number = db.Column(db.String(20), unique=True, nullable=False) # رقم الهاتف
-    reason = db.Column(db.String(200), nullable=True)                    # سبب الحظر
-    added_at = db.Column(db.DateTime, default=datetime.utcnow)           # تاريخ الإضافة
+    phone_number = db.Column(db.String(20), unique=True, nullable=False)
+    reason = db.Column(db.String(200), nullable=True)
+    blocked_by = db.Column(db.String(50), nullable=True) # اسم المستخدم الذي قام بالحظر
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class TestCallHistory(db.Model):
+    """
+    سجل الاتصالات التجريبية
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    phone_number = db.Column(db.String(20), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -6,6 +6,23 @@
 {% if current_user.can('contacts', 'edit') %}
 <div class="row mb-4">
     <div class="col-md-12">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">تحكم الحملة: {{ campaign.name }}</h5>
+                <div>
+                    <a href="{{ url_for('toggle_campaign', campaign_id=campaign.id) }}" class="btn btn-sm {{ 'btn-warning' if campaign.status == 'active' else 'btn-success' }}">
+                        <i class="fas {{ 'fa-pause' if campaign.status == 'active' else 'fa-play' }}"></i> {{ 'إيقاف مؤقت' if campaign.status == 'active' else 'تشغيل' }}
+                    </a>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editCampaignModal{{ campaign.id }}">
+                        <i class="fas fa-edit"></i> تعديل
+                    </button>
+                    <a href="{{ url_for('delete_campaign', campaign_id=campaign.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('هل أنت متأكد من حذف هذه الحملة؟ سيتم حذف جميع جهات الاتصال المرتبطة بها.')">
+                        <i class="fas fa-trash"></i> حذف
+                    </a>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div><i class="fas fa-file-upload me-2"></i> إضافة أرقام جديدة</div>
@@ -16,25 +33,57 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-6 border-start ps-4">
-                        <h6 class="text-muted mb-3">إضافة رقم فردي</h6>
-                        <form method="POST" action="{{ url_for('add_contact', campaign_id=campaign.id) }}" class="d-flex gap-2">
-                            <input type="text" class="form-control" name="phone_number" placeholder="رقم الهاتف" required>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-plus"></i> إضافة
+                        <h6 class="text-muted mb-3">إضافة أرقام (رقم واحد أو مجموعة)</h6>
+                        <form method="POST" action="{{ url_for('add_contact', campaign_id=campaign.id) }}">
+                            <div class="mb-2">
+                                <textarea class="form-control" name="phone_numbers" rows="5" placeholder="أدخل الأرقام هنا، كل رقم في سطر جديد (يدعم اللصق من Excel أو ملف نصي)" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-plus"></i> إضافة الأرقام
                             </button>
                         </form>
                     </div>
                     <div class="col-md-6 pe-4">
                         <h6 class="text-muted mb-3">رفع ملف CSV</h6>
-                        <form method="POST" action="{{ url_for('upload_contacts', campaign_id=campaign.id) }}" enctype="multipart/form-data" class="d-flex gap-2">
-                            <input type="file" class="form-control" name="file" accept=".csv" required>
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-upload"></i> رفع
+                        <form method="POST" action="{{ url_for('upload_contacts', campaign_id=campaign.id) }}" enctype="multipart/form-data">
+                            <div class="mb-2">
+                                <input type="file" class="form-control" name="file" accept=".csv" required>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="fas fa-upload"></i> رفع الملف
                             </button>
                         </form>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Campaign Modal (Hidden) -->
+<div class="modal fade" id="editCampaignModal{{ campaign.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تعديل الحملة</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('edit_campaign', campaign_id=campaign.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">اسم الحملة</label>
+                        <input type="text" class="form-control" name="name" value="{{ campaign.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الكيو المستهدف (Target Queue)</label>
+                        <input type="number" class="form-control" name="target_queue" value="{{ campaign.target_queue }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -20,6 +20,7 @@
                                 <th>#</th>
                                 <th>رقم الهاتف</th>
                                 <th>سبب الحظر</th>
+                                <th>تم الحظر بواسطة</th>
                                 <th>تاريخ الإضافة</th>
                                 <th>الإجراءات</th>
                             </tr>
@@ -34,6 +35,13 @@
                                         <span class="text-muted">{{ item.reason }}</span>
                                     {% else %}
                                         <span class="text-muted fst-italic">- لا يوجد سبب -</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.blocked_by %}
+                                        <span class="badge bg-info text-dark">{{ item.blocked_by }}</span>
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ item.added_at.strftime('%Y-%m-%d %H:%M') }}</td>

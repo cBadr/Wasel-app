@@ -8,7 +8,20 @@
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div><i class="fas fa-chart-bar me-2"></i> حالة الحملة النشطة</div>
-                <span class="badge bg-secondary rounded-pill" id="last-update">جاري الاتصال...</span>
+                <div class="d-flex align-items-center">
+                    <div id="campaign-controls" class="me-3" style="display: none;">
+                        <button id="btn-pause" class="btn btn-sm btn-warning rounded-pill me-1" onclick="toggleCampaign('pause')">
+                            <i class="fas fa-pause"></i> إيقاف مؤقت
+                        </button>
+                        <button id="btn-resume" class="btn btn-sm btn-success rounded-pill me-1" onclick="toggleCampaign('resume')">
+                            <i class="fas fa-play"></i> استئناف
+                        </button>
+                        <button id="btn-stop" class="btn btn-sm btn-danger rounded-pill" onclick="toggleCampaign('stop')">
+                            <i class="fas fa-stop"></i> إيقاف
+                        </button>
+                    </div>
+                    <span class="badge bg-secondary rounded-pill" id="last-update">جاري الاتصال...</span>
+                </div>
             </div>
             <div class="card-body">
                 <div class="row text-center" id="stats-container">
@@ -254,6 +267,44 @@
         }
     }
 
+    // Toggle Campaign Status
+    function toggleCampaign(action) {
+        if (!confirm('هل أنت متأكد من تنفيذ هذا الإجراء؟')) return;
+
+        // نحتاج لمعرفة ID الحملة النشطة. يمكن جلبه من الـ API stats
+        fetch('/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.campaign_id) {
+                    // إذا كان الإجراء إيقاف (stop) قد يعني حذف أو إيقاف نهائي، لكن هنا سنستخدم toggle
+                    // سنقوم بإنشاء endpoint جديد للتحكم بالحملة عبر API لسهولة التعامل
+                    // حالياً سنستخدم الرابط الموجود مع تحويله لـ fetch إذا أمكن أو redirect
+                    
+                    // لكن الرابط toggle يقلب الحالة فقط، لذا يفضل endpoint محدد
+                    // سنستخدم endpoint جديد: /api/campaign/<id>/action
+                    
+                    fetch(`/api/campaign/${data.campaign_id}/status`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ status: action === 'resume' ? 'active' : 'paused' }) // stop غير مدعوم حالياً كحالة منفصلة، نعتبره paused
+                    })
+                    .then(res => res.json())
+                    .then(resData => {
+                        if (resData.success) {
+                            alert('تم تحديث حالة الحملة بنجاح');
+                            updateStats();
+                        } else {
+                            alert('فشل تحديث الحالة: ' + resData.message);
+                        }
+                    });
+                } else {
+                    alert('لا توجد حملة نشطة حالياً');
+                }
+            });
+    }
+
     // الإبقاء على التحديث الدوري للإحصائيات كخطة بديلة ولضمان الدقة
     function updateStats() {
         fetch('/api/stats')
@@ -265,6 +316,26 @@
                 document.getElementById('dialed-count').textContent = data.dialed;
                 document.getElementById('answered-count').textContent = data.answered;
                 
+                // تحديث أزرار التحكم
+                const controls = document.getElementById('campaign-controls');
+                const btnPause = document.getElementById('btn-pause');
+                const btnResume = document.getElementById('btn-resume');
+                const btnStop = document.getElementById('btn-stop');
+                
+                if (data.status === 'active') {
+                    controls.style.display = 'block';
+                    btnPause.style.display = 'inline-block';
+                    btnStop.style.display = 'inline-block';
+                    btnResume.style.display = 'none';
+                } else if (data.status === 'paused') {
+                    controls.style.display = 'block';
+                    btnPause.style.display = 'none';
+                    btnStop.style.display = 'inline-block';
+                    btnResume.style.display = 'inline-block';
+                } else {
+                    controls.style.display = 'none';
+                }
+
                 // تحديث شريط التقدم
                 if (data.total > 0) {
                     const percent = Math.round(((data.total - data.pending) / data.total) * 100);
