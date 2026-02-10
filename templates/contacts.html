@@ -79,10 +79,16 @@
                                 <span class="badge bg-secondary">قيد الانتظار</span>
                             {% elif contact.status == 'dialed' %}
                                 <span class="badge bg-info text-dark">جاري الاتصال</span>
-                            {% elif contact.status == 'answered' %}
+                            {% elif contact.status in ['ANSWERED', 'answered'] %}
                                 <span class="badge bg-success">تم الرد</span>
-                            {% elif contact.status == 'failed' %}
-                                <span class="badge bg-danger">فشل</span>
+                            {% elif contact.status in ['BUSY', 'busy'] %}
+                                <span class="badge bg-danger">مشغول</span>
+                            {% elif contact.status in ['FAILED', 'failed'] %}
+                                <span class="badge bg-danger">فشل الإتصال</span>
+                            {% elif contact.status in ['CONGESTION', 'congestion'] %}
+                                <span class="badge bg-dark">خارج التغطية</span>
+                            {% elif contact.status in ['NO ANSWER', 'no answer'] %}
+                                <span class="badge bg-warning text-dark">لا يوجد رد</span>
                             {% elif contact.status == 'retry' %}
                                 <span class="badge bg-warning text-dark">إعادة محاولة ({{ contact.retries }})</span>
                             {% else %}
@@ -121,16 +127,16 @@
         </div>
 
         <!-- Pagination -->
-        {% if contacts.pages > 1 %}
+        {% if pagination.pages > 1 %}
         <nav aria-label="Page navigation" class="mt-4">
             <ul class="pagination justify-content-center">
-                {% if contacts.has_prev %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('contacts_page', page=contacts.prev_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status) }}">السابق</a></li>
+                {% if pagination.has_prev %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('contacts_page', page=pagination.prev_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status) }}">السابق</a></li>
                 {% endif %}
                 
-                {% for page_num in contacts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                     {% if page_num %}
-                        <li class="page-item {% if page_num == contacts.page %}active{% endif %}">
+                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
                             <a class="page-link" href="{{ url_for('contacts_page', page=page_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status) }}">{{ page_num }}</a>
                         </li>
                     {% else %}
@@ -138,8 +144,8 @@
                     {% endif %}
                 {% endfor %}
 
-                {% if contacts.has_next %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('contacts_page', page=contacts.next_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status) }}">التالي</a></li>
+                {% if pagination.has_next %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('contacts_page', page=pagination.next_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status) }}">التالي</a></li>
                 {% endif %}
             </ul>
         </nav>

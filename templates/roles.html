@@ -46,6 +46,8 @@
                                             {% elif res == 'packages' %}الباقات والعروض
                                             {% elif res == 'command_screen' %}شاشة الأوامر
                                             {% elif res == 'test_call' %}اتصال تجريبي
+                                            {% elif res == 'system_logs' %}سجلات النظام
+                                            {% elif res == 'cdr_import' %}استيراد CDR
                                             {% else %}{{ res }}{% endif %}
                                             : 
                                             {% if access == 'view' %}مشاهدة{% else %}تعديل{% endif %}
@@ -101,7 +103,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for resource in ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call'] %}
+                            {% for resource in ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import'] %}
                             <tr>
                                 <td>
                                     {% if resource == 'campaigns' %}الحملات
@@ -117,6 +119,8 @@
                                     {% elif resource == 'packages' %}الباقات والعروض
                                     {% elif resource == 'command_screen' %}شاشة الأوامر
                                     {% elif resource == 'test_call' %}اتصال تجريبي
+                                    {% elif resource == 'system_logs' %}سجلات النظام
+                                    {% elif resource == 'cdr_import' %}استيراد CDR
                                     {% else %}{{ resource }}{% endif %}
                                 </td>
                                 <td>
@@ -178,7 +182,7 @@
                         </thead>
                         <tbody>
                             {% set role_perms = role.get_permissions() %}
-                            {% for resource in ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call'] %}
+                            {% for resource in ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import'] %}
                             <tr>
                                 <td>
                                     {% if resource == 'campaigns' %}الحملات
@@ -194,6 +198,8 @@
                                     {% elif resource == 'packages' %}الباقات والعروض
                                     {% elif resource == 'command_screen' %}شاشة الأوامر
                                     {% elif resource == 'test_call' %}اتصال تجريبي
+                                    {% elif resource == 'system_logs' %}سجلات النظام
+                                    {% elif resource == 'cdr_import' %}استيراد CDR
                                     {% else %}{{ resource }}{% endif %}
                                 </td>
                                 <td>

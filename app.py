@@ -2,6 +2,7 @@ import notifications
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from models import db, Campaign, Contact, Settings, User, Role, Client, Blacklist, TestCallHistory
+from sqlalchemy import func
 from functools import wraps
 import os
 import socket
@@ -747,6 +748,7 @@ def delete_contact(contact_id):
 @requires_permission('contacts', 'edit')
 def block_contact(contact_id):
     contact = Contact.query.get_or_404(contact_id)
+
     campaign_id = contact.campaign_id
     
     # Check if already blacklisted
@@ -776,6 +778,31 @@ def block_contact(contact_id):
         flash(f'تم حظر الرقم {contact.phone_number} وإضافته للقائمة السوداء', 'success')
         
     return redirect(url_for('view_campaign', campaign_id=campaign_id))
+
+@app.route('/campaign/<int:campaign_id>/action/<action_type>')
+@login_required
+@requires_permission('campaigns', 'edit')
+def campaign_action(campaign_id, action_type):
+    campaign = Campaign.query.get_or_404(campaign_id)
+    # Check ownership/permissions
+    if campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+         flash('لا تملك صلاحية لهذه الحملة', 'danger')
+         return redirect(url_for('campaigns'))
+         
+    if action_type == 'retry_failed':
+        # Retry Failed (including lower and upper case)
+        count = Contact.query.filter_by(campaign_id=campaign_id).filter(func.lower(Contact.status) == 'failed').update({'status': 'pending', 'retries': 0}, synchronize_session=False)
+        flash(f'تم إعادة تعيين {count} جهة اتصال (فشل) للمحاولة مرة أخرى', 'success')
+    elif action_type == 'retry_congestion':
+        # Congestion, Busy, No Answer
+        count = Contact.query.filter_by(campaign_id=campaign_id).filter(func.lower(Contact.status).in_(['congestion', 'busy', 'no answer'])).update({'status': 'pending', 'retries': 0}, synchronize_session=False)
+        flash(f'تم إعادة تعيين {count} جهة اتصال (مشغول/خارج التغطية) للمحاولة مرة أخرى', 'success')
+    elif action_type == 'restart':
+        count = Contact.query.filter_by(campaign_id=campaign_id).update({'status': 'pending', 'retries': 0}, synchronize_session=False)
+        flash(f'تم إعادة تشغيل الحملة بالكامل ({count} رقم)', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('campaigns'))
 
 # --- الإعدادات ---
 @app.route('/settings', methods=['GET', 'POST'])
@@ -1119,13 +1146,13 @@ def api_campaign_status(campaign_id):
 
 @app.route('/logs')
 @login_required
-@requires_permission('monitor', 'view')
+@requires_permission('system_logs', 'view')
 def view_logs():
     return render_template('logs.html')
 
 @app.route('/api/logs')
 @login_required
-@requires_permission('monitor', 'view')
+@requires_permission('system_logs', 'view')
 def get_logs():
     try:
         log_file_path = os.path.join(os.getcwd(), 'dialer.log')
@@ -1292,7 +1319,7 @@ def add_role():
         return redirect(url_for('roles'))
     
     perms = {}
-    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call']
+    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import']
     for res in resources:
         perms[res] = request.form.get(f'perm_{res}', 'none')
         
@@ -1311,7 +1338,7 @@ def edit_role(role_id):
     role.name = request.form.get('name')
     
     perms = {}
-    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call']
+    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import']
     for res in resources:
         perms[res] = request.form.get(f'perm_{res}', 'none')
         
@@ -1366,7 +1393,7 @@ def toggle_campaign_lock(campaign_id):
 
 @app.route('/campaigns/import_cdr', methods=['POST'])
 @login_required
-@requires_permission('campaigns', 'edit')
+@requires_permission('cdr_import', 'edit')
 def import_cdr_to_campaign_route():
     campaign_name = request.form.get('campaign_name')
     if not campaign_name:
@@ -2018,7 +2045,7 @@ def test_call_501():
 
             channel = f"Local/{phone}@from-internal"
             
-            success = ami.originate_call(
+            success, ami_response = ami.originate_call_with_response(
                 channel=channel,
                 exten='501',
                 context='from-internal',
@@ -2050,7 +2077,9 @@ def test_call_501():
                     db.session.commit()
                     flash(f'تم بدء الاتصال بالرقم {phone} (المحاولة {current_count + 1}/{limit}).', 'success')
             else:
-                flash('فشل إرسال أمر الاتصال. تحقق من سجلات Asterisk.', 'danger')
+                # تنظيف الرد لعرضه
+                clean_response = ami_response.replace('\r\n', ' ').replace('Response:', '').strip()
+                flash(f'فشل إرسال أمر الاتصال. رد Asterisk: {clean_response}', 'danger')
                 
         else:
             flash('فشل الاتصال بـ AMI. تأكد من تشغيل Asterisk والإعدادات.', 'danger')

@@ -178,3 +178,21 @@ CallerID: "Monitor: {target_channel}"
         )
         response = self.send_command(action)
         return response and "Success" in response
+
+    def originate_call_with_response(self, channel, exten, context, priority, caller_id, timeout=30000):
+        """
+        بدء مكالمة مع إرجاع الرد
+        """
+        action = (
+            f"Action: Originate\r\n"
+            f"Channel: {channel}\r\n"
+            f"Context: {context}\r\n"
+            f"Exten: {exten}\r\n"
+            f"Priority: {priority}\r\n"
+            f"CallerID: {caller_id}\r\n"
+            f"Timeout: {timeout}\r\n"
+            f"Async: true"
+        )
+        response = self.send_command(action)
+        success = response and ("Success" in response or "queued" in response.lower())
+        return success, response

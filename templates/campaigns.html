@@ -9,9 +9,11 @@
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div><i class="fas fa-plus-circle me-2"></i> إنشاء حملة جديدة</div>
+                {% if current_user.can('cdr_import', 'edit') %}
                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importCdrModal">
                     <i class="fas fa-file-import me-1"></i> استيراد من CDR
                 </button>
+                {% endif %}
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('create_campaign') }}" class="row g-3 align-items-end">
@@ -79,6 +81,17 @@
                                 <td>
                                     <div class="btn-group" role="group">
                                         {% if current_user.can('campaigns', 'edit') %}
+                                        <div class="btn-group" role="group">
+                                            <button id="btnGroupDrop{{ campaign.id }}" type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="fas fa-cog"></i>
+                                            </button>
+                                            <ul class="dropdown-menu" aria-labelledby="btnGroupDrop{{ campaign.id }}">
+                                                <li><a class="dropdown-item" href="{{ url_for('campaign_action', campaign_id=campaign.id, action_type='retry_failed') }}" onclick="return confirm('هل أنت متأكد من إعادة محاولة الأرقام التي فشل الاتصال بها؟')"><i class="fas fa-redo me-2 text-warning"></i>إعادة محاولة (فشل)</a></li>
+                                                <li><a class="dropdown-item" href="{{ url_for('campaign_action', campaign_id=campaign.id, action_type='retry_congestion') }}" onclick="return confirm('هل أنت متأكد من إعادة محاولة الأرقام المشغولة/خارج التغطية؟')"><i class="fas fa-redo me-2 text-warning"></i>إعادة محاولة (مشغول/خارج التغطية)</a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="{{ url_for('campaign_action', campaign_id=campaign.id, action_type='restart') }}" onclick="return confirm('تحذير: هذا سيقوم بإعادة تشغيل الحملة بالكامل من البداية. هل أنت متأكد؟')"><i class="fas fa-sync me-2"></i>إعادة تشغيل الحملة</a></li>
+                                            </ul>
+                                        </div>
                                         <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#editCampaignModal{{ campaign.id }}" title="تعديل">
                                             <i class="fas fa-edit"></i>
                                         </button>

@@ -45,23 +45,29 @@
                 </li>
                 {% endif %}
                 
-                {% if current_user.can('monitor', 'view') %}
+                {% if current_user.can('monitor', 'view') or current_user.can('command_screen', 'view') or current_user.can('system_logs', 'view') %}
                 <li>
                     <a href="#monitorSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
                         <i class="fas fa-desktop"></i> أدوات المراقبة
                     </a>
                     <ul class="collapse list-unstyled {{ 'show' if request.endpoint in ['monitor', 'command_screen', 'view_logs'] else '' }}" id="monitorSubmenu">
+                        {% if current_user.can('monitor', 'view') %}
                         <li class="{{ 'active' if request.endpoint == 'monitor' else '' }}">
                             <a href="{{ url_for('monitor') }}">المراقبة الحية</a>
                         </li>
+                        {% endif %}
+                        
                         {% if current_user.can('command_screen', 'view') %}
                         <li class="{{ 'active' if request.endpoint == 'command_screen' else '' }}">
                             <a href="{{ url_for('command_screen') }}">شاشة الأوامر</a>
                         </li>
                         {% endif %}
+                        
+                        {% if current_user.can('system_logs', 'view') %}
                         <li class="{{ 'active' if request.endpoint == 'view_logs' else '' }}">
                             <a href="{{ url_for('view_logs') }}">سجلات النظام</a>
                         </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}
