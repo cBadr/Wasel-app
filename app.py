@@ -1152,17 +1152,18 @@ def import_cdr_to_campaign_route():
     try:
         with cdr_conn.cursor() as cursor:
             table_name = settings.cdr_table_name
-            # Query grouped by destination
+            # Query grouped by source (Caller ID) as requested
+            # User specified columns: source, Status, Duration
             sql = f"""
                 SELECT 
-                    dst, 
+                    source, 
                     COUNT(*) as attempts, 
                     MAX(calldate) as last_attempt, 
-                    MAX(billsec) as max_duration,
-                    SUM(CASE WHEN disposition = 'ANSWERED' THEN 1 ELSE 0 END) as answered_count
+                    MAX(Duration) as max_duration,
+                    SUM(CASE WHEN Status = 'ANSWERED' THEN 1 ELSE 0 END) as answered_count
                 FROM {table_name}
-                WHERE dst != '' AND dst IS NOT NULL
-                GROUP BY dst
+                WHERE source != '' AND source IS NOT NULL
+                GROUP BY source
             """
             cursor.execute(sql)
             results = cursor.fetchall()
@@ -1173,7 +1174,8 @@ def import_cdr_to_campaign_route():
             count_added = 0
             
             for row in results:
-                phone = str(row['dst']).strip()
+                # Use 'source' column
+                phone = str(row['source']).strip()
                 
                 # Validation: Skip invalid numbers
                 # 1. Check length (must fit in DB column)
