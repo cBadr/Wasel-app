@@ -19,7 +19,6 @@ def fix_db():
                 print("Column missing. Adding 'updated_at'...")
                 # Add the column
                 conn.execute(text("ALTER TABLE campaign ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP"))
-                conn.commit()
                 print("Column 'updated_at' added successfully.")
                 
     except Exception as e:
