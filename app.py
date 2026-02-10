@@ -1105,6 +1105,111 @@ def toggle_campaign_lock(campaign_id):
     db.session.commit()
     return redirect(url_for('campaigns'))
 
+@app.route('/campaigns/import_cdr', methods=['POST'])
+@login_required
+@requires_permission('campaigns', 'edit')
+def import_cdr_to_campaign_route():
+    campaign_name = request.form.get('campaign_name')
+    if not campaign_name:
+        flash('الرجاء تحديد اسم الحملة', 'danger')
+        return redirect(url_for('campaigns'))
+        
+    # Get or Create Campaign
+    campaign = Campaign.query.filter_by(name=campaign_name).first()
+    if not campaign:
+        campaign = Campaign(
+            name=campaign_name,
+            status='paused',
+            target_queue='501',
+            user_id=current_user.id,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(campaign)
+        db.session.commit()
+        flash(f'تم إنشاء حملة جديدة باسم {campaign_name}', 'info')
+    
+    # Import Logic
+    settings = Settings.query.first()
+    if not settings:
+        flash('إعدادات النظام غير متوفرة', 'danger')
+        return redirect(url_for('campaigns'))
+        
+    try:
+        cdr_conn = pymysql.connect(
+            host=settings.cdr_db_host,
+            port=settings.cdr_db_port,
+            user=settings.cdr_db_user,
+            password=settings.cdr_db_pass,
+            database=settings.cdr_db_name,
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=5
+        )
+    except Exception as e:
+        flash(f'فشل الاتصال بقاعدة بيانات Asterisk: {str(e)}', 'danger')
+        return redirect(url_for('campaigns'))
+
+    try:
+        with cdr_conn.cursor() as cursor:
+            table_name = settings.cdr_table_name
+            # Query grouped by destination
+            sql = f"""
+                SELECT 
+                    dst, 
+                    COUNT(*) as attempts, 
+                    MAX(calldate) as last_attempt, 
+                    MAX(billsec) as max_duration,
+                    SUM(CASE WHEN disposition = 'ANSWERED' THEN 1 ELSE 0 END) as answered_count
+                FROM {table_name}
+                WHERE dst != '' AND dst IS NOT NULL
+                GROUP BY dst
+            """
+            cursor.execute(sql)
+            results = cursor.fetchall()
+            
+            existing_phones = {c.phone_number for c in Contact.query.filter_by(campaign_id=campaign.id).all()}
+            
+            new_contacts = []
+            count_added = 0
+            
+            for row in results:
+                phone = row['dst']
+                if phone in existing_phones:
+                    continue
+                    
+                status = 'answered' if row['answered_count'] > 0 else 'failed'
+                attempts = row['attempts']
+                
+                contact = Contact(
+                    phone_number=phone,
+                    status=status,
+                    campaign_id=campaign.id,
+                    last_dialed=row['last_attempt'],
+                    duration=row['max_duration'],
+                    retries=attempts,
+                    name=f"CDR Import"
+                )
+                new_contacts.append(contact)
+                count_added += 1
+                
+                if len(new_contacts) >= 1000:
+                    db.session.add_all(new_contacts)
+                    db.session.commit()
+                    new_contacts = []
+            
+            if new_contacts:
+                db.session.add_all(new_contacts)
+                db.session.commit()
+                
+            flash(f'تم استيراد {count_added} جهة اتصال بنجاح إلى الحملة {campaign_name}', 'success')
+            
+    except Exception as e:
+        flash(f'حدث خطأ أثناء الاستيراد: {str(e)}', 'danger')
+    finally:
+        cdr_conn.close()
+        
+    return redirect(url_for('campaigns'))
+
 @app.route('/users/<int:user_id>/toggle_ban')
 @login_required
 @requires_permission('users', 'edit')

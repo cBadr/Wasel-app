@@ -135,7 +135,7 @@ class Settings(db.Model):
     monitor_extension = db.Column(db.String(20), default='100')      # رقم التحويلة المستخدمة للمراقبة (ChanSpy)
 
     # إعدادات الاتصال التجريبي
-    test_call_limit = db.Column(db.Integer, default=1) # عدد مرات التجربة قبل الحظر
+    test_call_limit = db.Column(db.Integer, default=3) # عدد مرات التجربة قبل الحظر
 
 class Campaign(db.Model):
     """

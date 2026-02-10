@@ -7,8 +7,11 @@
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <div><i class="fas fa-plus-circle me-2"></i> إنشاء حملة جديدة</div>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importCdrModal">
+                    <i class="fas fa-file-import me-1"></i> استيراد من CDR
+                </button>
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('create_campaign') }}" class="row g-3 align-items-end">
@@ -170,4 +173,37 @@
     </div>
 </div>
 {% endfor %}
+
+<!-- Import CDR Modal -->
+<div class="modal fade" id="importCdrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">استيراد جهات الاتصال من CDR</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('import_cdr_to_campaign_route') }}">
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        سيتم استيراد جميع الأرقام من سجلات المكالمات (CDR) وتجميعها حسب الرقم.
+                        سيتم حساب عدد المحاولات، الحالة، مدة المكالمة، وتاريخ آخر محاولة تلقائياً.
+                    </div>
+                    <div class="mb-3">
+                        <label for="campaign_name_import" class="form-label">اسم الحملة (موجودة أو جديدة)</label>
+                        <input type="text" class="form-control" id="campaign_name_import" name="campaign_name" placeholder="مثال: x" required>
+                        <div class="form-text">إذا كانت الحملة موجودة سيتم الإضافة إليها، وإلا سيتم إنشاؤها.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-file-import me-2"></i> بدء الاستيراد
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
