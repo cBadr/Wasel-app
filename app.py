@@ -29,7 +29,7 @@ except OSError:
 # استخدام مسار قاعدة البيانات داخل مجلد instance
 # db_path = os.path.join(app.instance_path, 'autodialer.db')
 # app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Medoza120a@officex2.ddns.net/wasel'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Medoza120a@127.0.0.1/wasel'
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle': 280}
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'issabel_secret_key_auto_dialer'

@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # نستخدم مسار مطلق لملف قاعدة البيانات في مجلد instance
 # db_path = f'sqlite:///{os.path.join(os.getcwd(), "instance", "autodialer.db")}'
 # engine = create_engine(db_path)
-db_uri = 'mysql+pymysql://root:Medoza120a@192.168.1.101/wasel'
+db_uri = 'mysql+pymysql://root:Medoza120a@127.0.0.1/wasel'
 engine = create_engine(db_uri, pool_recycle=280)
 Session = sessionmaker(bind=engine)
 

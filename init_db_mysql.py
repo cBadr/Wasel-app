@@ -1,6 +1,8 @@
 from app import app, db
 import sqlalchemy
 
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:Medoza120a@127.0.0.1/wasel'
+
 def init_db():
     with app.app_context():
         try:
