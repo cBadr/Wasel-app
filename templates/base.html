@@ -67,6 +67,14 @@
                 {% endif %}
 
                 {% if current_user.can('contacts', 'view') %}
+                <li class="{{ 'active' if request.endpoint == 'contacts_page' else '' }}">
+                    <a href="{{ url_for('contacts_page') }}">
+                        <i class="fas fa-address-book"></i> إدارة جهات الاتصال
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if current_user.can('reports', 'view') %}
                 <li class="{{ 'active' if request.endpoint == 'reports' else '' }}">
                     <a href="{{ url_for('reports') }}">
                         <i class="fas fa-chart-line"></i> التقارير
