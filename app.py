@@ -1153,17 +1153,17 @@ def import_cdr_to_campaign_route():
         with cdr_conn.cursor() as cursor:
             table_name = settings.cdr_table_name
             # Query grouped by source (Caller ID) as requested
-            # User specified columns: source, Status, Duration
+            # Reverting to standard Asterisk columns (src, disposition, billsec) as 'source' column does not exist
             sql = f"""
                 SELECT 
-                    source, 
+                    src, 
                     COUNT(*) as attempts, 
                     MAX(calldate) as last_attempt, 
-                    MAX(Duration) as max_duration,
-                    SUM(CASE WHEN Status = 'ANSWERED' THEN 1 ELSE 0 END) as answered_count
+                    MAX(billsec) as max_duration,
+                    SUM(CASE WHEN disposition = 'ANSWERED' THEN 1 ELSE 0 END) as answered_count
                 FROM {table_name}
-                WHERE source != '' AND source IS NOT NULL
-                GROUP BY source
+                WHERE src != '' AND src IS NOT NULL
+                GROUP BY src
             """
             cursor.execute(sql)
             results = cursor.fetchall()
@@ -1174,8 +1174,8 @@ def import_cdr_to_campaign_route():
             count_added = 0
             
             for row in results:
-                # Use 'source' column
-                phone = str(row['source']).strip()
+                # Use 'src' column
+                phone = str(row['src']).strip()
                 
                 # Validation: Skip invalid numbers
                 # 1. Check length (must fit in DB column)
