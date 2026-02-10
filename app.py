@@ -794,7 +794,7 @@ def api_stats():
         })
     else:
         # Check for paused campaign
-        paused_campaign = Campaign.query.filter_by(status='paused', user_id=current_user.id if not is_admin else Campaign.user_id).order_by(Campaign.updated_at.desc()).first()
+        paused_campaign = Campaign.query.filter_by(status='paused', user_id=current_user.id if not is_admin else Campaign.user_id).order_by(Campaign.id.desc()).first()
         if paused_campaign:
              total = Contact.query.filter_by(campaign_id=paused_campaign.id).count()
              pending = Contact.query.filter_by(campaign_id=paused_campaign.id, status='pending').count()

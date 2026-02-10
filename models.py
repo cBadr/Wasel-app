@@ -146,6 +146,7 @@ class Campaign(db.Model):
     status = db.Column(db.String(20), default='paused')       # حالة الحملة: active, paused, completed
     target_queue = db.Column(db.String(10), default='501')    # الكيو المستهدف للتحويل (مخصص للحملة)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # حقول جديدة للملكية والإدارة
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # مالك الحملة
