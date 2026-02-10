@@ -279,19 +279,76 @@ def campaigns():
         all_campaigns = Campaign.query.filter_by(user_id=current_user.id).order_by(Campaign.created_at.desc()).all()
     return render_template('campaigns.html', campaigns=all_campaigns)
 
-@app.route('/campaigns/create', methods=['POST'])
+@app.route('/campaigns/create', methods=['GET', 'POST'])
 @login_required
 @requires_permission('campaigns', 'edit')
 def create_campaign():
+    if request.method == 'GET':
+        return render_template('campaign_create.html')
+        
     name = request.form.get('name')
     target_queue = request.form.get('target_queue')
     
+    # Scheduling fields
+    start_date_str = request.form.get('start_date')
+    end_date_str = request.form.get('end_date')
+    daily_start_str = request.form.get('daily_start_time')
+    daily_end_str = request.form.get('daily_end_time')
+    
+    # Advanced fields
+    concurrent_channels = request.form.get('concurrent_channels')
+    max_retries = request.form.get('max_retries')
+    retry_interval = request.form.get('retry_interval')
+    
     if name and target_queue:
         new_campaign = Campaign(name=name, target_queue=target_queue, user_id=current_user.id)
+        
+        # Parse dates and times
+        if start_date_str:
+            try:
+                new_campaign.start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        if end_date_str:
+            try:
+                new_campaign.end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        if daily_start_str:
+            try:
+                new_campaign.daily_start_time = datetime.strptime(daily_start_str, '%H:%M').time()
+            except ValueError:
+                pass
+        if daily_end_str:
+            try:
+                new_campaign.daily_end_time = datetime.strptime(daily_end_str, '%H:%M').time()
+            except ValueError:
+                pass
+                
+        # Parse integers
+        if concurrent_channels:
+            try:
+                new_campaign.concurrent_channels = int(concurrent_channels)
+            except ValueError:
+                pass
+        if max_retries:
+            try:
+                new_campaign.max_retries = int(max_retries)
+            except ValueError:
+                pass
+        if retry_interval:
+            try:
+                new_campaign.retry_interval = int(retry_interval)
+            except ValueError:
+                pass
+                
         db.session.add(new_campaign)
         db.session.commit()
         flash('تم إنشاء الحملة بنجاح', 'success')
-    return redirect(url_for('campaigns'))
+        return redirect(url_for('campaigns'))
+        
+    flash('يرجى ملء جميع الحقول الإجبارية', 'danger')
+    return render_template('campaign_create.html')
 
 @app.route('/campaign/<int:campaign_id>/edit', methods=['POST'])
 @login_required
@@ -375,7 +432,195 @@ def toggle_campaign(campaign_id):
         
     return redirect(url_for('campaigns'))
 
-# --- إدارة جهات الاتصال ---
+@app.route('/contacts')
+@login_required
+@requires_permission('contacts', 'view')
+def contacts_page():
+    page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('search', '')
+    campaign_filter = request.args.get('campaign_id', '')
+    status_filter = request.args.get('status', '')
+    
+    # Base query
+    query = Contact.query
+    
+    # Filter by user permissions
+    if current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+        # Join with Campaign to filter by user_id
+        query = query.join(Campaign).filter(Campaign.user_id == current_user.id)
+    
+    # Apply filters
+    if search_query:
+        query = query.filter(Contact.phone_number.like(f'%{search_query}%'))
+    if campaign_filter:
+        query = query.filter(Contact.campaign_id == int(campaign_filter))
+    if status_filter:
+        query = query.filter(Contact.status == status_filter)
+        
+    # Pagination
+    pagination = query.order_by(Contact.id.desc()).paginate(page=page, per_page=50, error_out=False)
+    contacts = pagination.items
+    
+    # Get available campaigns for filter dropdown
+    if current_user.role == 'admin' or (current_user.user_role and current_user.user_role.name == 'Admin'):
+        campaigns = Campaign.query.all()
+    else:
+        campaigns = Campaign.query.filter_by(user_id=current_user.id).all()
+        
+    return render_template('contacts.html', contacts=contacts, pagination=pagination, campaigns=campaigns, 
+                           search=search_query, campaign_filter=campaign_filter, status_filter=status_filter)
+
+@app.route('/contacts/add', methods=['POST'])
+@login_required
+@requires_permission('contacts', 'edit')
+def add_single_contact():
+    phone = request.form.get('phone_number')
+    name = request.form.get('name')
+    campaign_id = request.form.get('campaign_id')
+    
+    if not phone or not campaign_id:
+        flash('رقم الهاتف والحملة مطلوبان', 'danger')
+        return redirect(url_for('contacts_page'))
+        
+    # Verify campaign ownership
+    campaign = Campaign.query.get(campaign_id)
+    if not campaign:
+        flash('الحملة غير موجودة', 'danger')
+        return redirect(url_for('contacts_page'))
+        
+    if campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+        flash('لا تملك صلاحية الإضافة لهذه الحملة', 'danger')
+        return redirect(url_for('contacts_page'))
+        
+    # Check duplicate
+    if Contact.query.filter_by(campaign_id=campaign_id, phone_number=phone).first():
+        flash('هذا الرقم موجود بالفعل في هذه الحملة', 'warning')
+        return redirect(url_for('contacts_page'))
+        
+    new_contact = Contact(phone_number=phone, name=name, campaign_id=campaign_id)
+    db.session.add(new_contact)
+    db.session.commit()
+    
+    flash('تم إضافة جهة الاتصال بنجاح', 'success')
+    return redirect(url_for('contacts_page'))
+
+@app.route('/contacts/update', methods=['POST'])
+@login_required
+@requires_permission('contacts', 'edit')
+def update_contact():
+    contact_id = request.form.get('contact_id')
+    phone = request.form.get('phone_number')
+    name = request.form.get('name')
+    campaign_id = request.form.get('campaign_id')
+    
+    contact = Contact.query.get_or_404(contact_id)
+    
+    # Check ownership (of old campaign)
+    old_campaign = Campaign.query.get(contact.campaign_id)
+    if old_campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+         flash('لا تملك صلاحية تعديل هذا الرقم', 'danger')
+         return redirect(url_for('contacts_page'))
+         
+    # Check ownership (of new campaign if changed)
+    if int(campaign_id) != contact.campaign_id:
+        new_campaign = Campaign.query.get(campaign_id)
+        if new_campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+             flash('لا تملك صلاحية النقل لهذه الحملة', 'danger')
+             return redirect(url_for('contacts_page'))
+    
+    contact.phone_number = phone
+    contact.name = name
+    contact.campaign_id = campaign_id
+    
+    db.session.commit()
+    flash('تم تحديث جهة الاتصال بنجاح', 'success')
+    return redirect(url_for('contacts_page'))
+
+@app.route('/contacts/delete/<int:contact_id>')
+@login_required
+@requires_permission('contacts', 'edit')
+def delete_contact_route(contact_id):
+    return delete_contact(contact_id)
+
+@app.route('/contacts/bulk_delete', methods=['POST'])
+@login_required
+@requires_permission('contacts', 'edit')
+def bulk_delete_contacts():
+    contact_ids_str = request.form.get('contact_ids')
+    if not contact_ids_str:
+        flash('لم يتم تحديد أي جهات اتصال', 'warning')
+        return redirect(url_for('contacts_page'))
+        
+    try:
+        contact_ids = json.loads(contact_ids_str)
+        if not contact_ids:
+            flash('لم يتم تحديد أي جهات اتصال', 'warning')
+            return redirect(url_for('contacts_page'))
+            
+        # Verify ownership for all contacts before deleting
+        # Efficient way: query all contacts and check ownership
+        contacts = Contact.query.filter(Contact.id.in_(contact_ids)).all()
+        deleted_count = 0
+        
+        for contact in contacts:
+            # Check permission via campaign ownership
+            campaign = Campaign.query.get(contact.campaign_id)
+            if campaign and (campaign.user_id == current_user.id or current_user.role == 'admin' or (current_user.user_role and current_user.user_role.name == 'Admin')):
+                db.session.delete(contact)
+                deleted_count += 1
+                
+        db.session.commit()
+        flash(f'تم حذف {deleted_count} جهة اتصال بنجاح', 'success')
+        
+    except Exception as e:
+        flash(f'حدث خطأ أثناء الحذف: {str(e)}', 'danger')
+        
+    return redirect(url_for('contacts_page'))
+
+@app.route('/contacts/assign', methods=['POST'])
+@login_required
+@requires_permission('contacts', 'edit')
+def assign_contacts():
+    contact_ids_str = request.form.get('contact_ids')
+    target_campaign_id = request.form.get('target_campaign_id')
+    
+    if not contact_ids_str or not target_campaign_id:
+        flash('بيانات غير مكتملة', 'warning')
+        return redirect(url_for('contacts_page'))
+        
+    # Verify target campaign ownership
+    target_campaign = Campaign.query.get(target_campaign_id)
+    if not target_campaign:
+        flash('الحملة المستهدفة غير موجودة', 'danger')
+        return redirect(url_for('contacts_page'))
+        
+    if target_campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+        flash('لا تملك صلاحية النقل لهذه الحملة', 'danger')
+        return redirect(url_for('contacts_page'))
+        
+    try:
+        contact_ids = json.loads(contact_ids_str)
+        contacts = Contact.query.filter(Contact.id.in_(contact_ids)).all()
+        updated_count = 0
+        
+        for contact in contacts:
+             # Check source permission
+            source_campaign = Campaign.query.get(contact.campaign_id)
+            if source_campaign and (source_campaign.user_id == current_user.id or current_user.role == 'admin' or (current_user.user_role and current_user.user_role.name == 'Admin')):
+                # Check for duplicate in target
+                if not Contact.query.filter_by(campaign_id=target_campaign_id, phone_number=contact.phone_number).first():
+                    contact.campaign_id = target_campaign_id
+                    updated_count += 1
+                
+        db.session.commit()
+        flash(f'تم نقل {updated_count} جهة اتصال بنجاح', 'success')
+        
+    except Exception as e:
+        flash(f'حدث خطأ أثناء النقل: {str(e)}', 'danger')
+        
+    return redirect(url_for('contacts_page'))
+
+# --- إدارة جهات الاتصال (Old Routes) ---
 @app.route('/campaign/<int:campaign_id>/view')
 @login_required
 @requires_permission('contacts', 'view')
@@ -478,9 +723,23 @@ def edit_contact(contact_id):
 def delete_contact(contact_id):
     contact = Contact.query.get_or_404(contact_id)
     campaign_id = contact.campaign_id
+    
+    # Check ownership
+    campaign = Campaign.query.get(campaign_id)
+    if campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+        flash('لا تملك صلاحية حذف هذا الرقم', 'danger')
+        # Redirect based on referrer
+        if 'contacts' in request.referrer:
+            return redirect(url_for('contacts_page'))
+        return redirect(url_for('view_campaign', campaign_id=campaign_id))
+
     db.session.delete(contact)
     db.session.commit()
     flash('تم حذف الرقم بنجاح', 'info')
+    
+    # Smart redirect
+    if request.referrer and 'contacts' in request.referrer and 'view' not in request.referrer:
+         return redirect(url_for('contacts_page'))
     return redirect(url_for('view_campaign', campaign_id=campaign_id))
 
 @app.route('/contact/<int:contact_id>/block')

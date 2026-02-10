@@ -148,6 +148,15 @@ class Campaign(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Scheduling and Advanced Settings
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
+    daily_start_time = db.Column(db.Time, nullable=True)
+    daily_end_time = db.Column(db.Time, nullable=True)
+    concurrent_channels = db.Column(db.Integer, nullable=True) # If None, use global settings
+    max_retries = db.Column(db.Integer, nullable=True) # If None, use global settings
+    retry_interval = db.Column(db.Integer, nullable=True) # If None, use global settings
+
     # حقول جديدة للملكية والإدارة
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # مالك الحملة
     is_locked = db.Column(db.Boolean, default=False) # قفل الحملة من قبل الأدمن

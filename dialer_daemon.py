@@ -276,9 +276,35 @@ def run_dialer():
                 last_cdr_sync = datetime.now()
 
             # 2. البحث عن حملات نشطة (تعديل لدعم تعدد الحملات)
-            active_campaigns = session.query(Campaign).filter_by(status='active').all()
+            # والتحقق من الجدولة الزمنية
+            all_active_campaigns = session.query(Campaign).filter_by(status='active').all()
+            active_campaigns = []
+            
+            now_date = datetime.now().date()
+            now_time = datetime.now().time()
+            
+            for campaign in all_active_campaigns:
+                # التحقق من تاريخ البداية والنهاية
+                if campaign.start_date and now_date < campaign.start_date:
+                    continue
+                if campaign.end_date and now_date > campaign.end_date:
+                    continue
+                    
+                # التحقق من وقت البداية والنهاية اليومي
+                if campaign.daily_start_time and campaign.daily_end_time:
+                    # التعامل مع الحالة التي يكون فيها وقت النهاية بعد منتصف الليل (مثلاً من 22:00 إلى 02:00)
+                    if campaign.daily_start_time <= campaign.daily_end_time:
+                        if not (campaign.daily_start_time <= now_time <= campaign.daily_end_time):
+                            continue
+                    else:
+                        # عبر منتصف الليل
+                        if not (now_time >= campaign.daily_start_time or now_time <= campaign.daily_end_time):
+                            continue
+                            
+                active_campaigns.append(campaign)
+            
             if not active_campaigns:
-                logger.info("لا توجد حملات نشطة حالياً. انتظار 5 ثواني...")
+                logger.info("لا توجد حملات نشطة حالياً (أو خارج أوقات العمل). انتظار 5 ثواني...")
                 time.sleep(5)
                 continue
 
@@ -302,19 +328,33 @@ def run_dialer():
                 
                 # توزيع الدونجل على الحملات النشطة
                 campaigns_count = len(active_campaigns)
-                dongles_per_campaign = max(1, len(available_dongles) // campaigns_count)
+                
+                # حساب الدونجلات المتاحة لكل حملة
+                # نبدأ بتوزيع متساوي مبدئياً
+                base_dongles_per_campaign = max(1, len(available_dongles) // campaigns_count)
                 
                 dongle_cursor = 0
                 
                 for i, active_campaign in enumerate(active_campaigns):
+                    # تحديد الحد الأقصى للقنوات لهذه الحملة
+                    campaign_limit = active_campaign.concurrent_channels
+                    
                     # تحديد حصة هذه الحملة من الدونجل
                     if i == campaigns_count - 1:
                         # الحملة الأخيرة تأخذ الباقي
-                        my_dongles = available_dongles[dongle_cursor:]
+                        potential_dongles = available_dongles[dongle_cursor:]
                     else:
-                        my_dongles = available_dongles[dongle_cursor : dongle_cursor + dongles_per_campaign]
+                        potential_dongles = available_dongles[dongle_cursor : dongle_cursor + base_dongles_per_campaign]
                     
-                    dongle_cursor += len(my_dongles)
+                    # تطبيق حد القنوات الخاص بالحملة إذا وجد
+                    if campaign_limit and len(potential_dongles) > campaign_limit:
+                        my_dongles = potential_dongles[:campaign_limit]
+                        # المتبقي يضيع في هذه الدورة (أو يمكن إعادة توزيعه في تحسين مستقبلي)
+                        # لتفادي التعقيد، نكتفي بهذا القدر الآن
+                        dongle_cursor += len(potential_dongles) # نتقدم بالمؤشر الأصلي
+                    else:
+                        my_dongles = potential_dongles
+                        dongle_cursor += len(potential_dongles)
                     
                     if not my_dongles:
                         continue
@@ -337,7 +377,12 @@ def run_dialer():
                                     last_progress_notification = now
 
                     # 4. جلب جهات اتصال لهذه الحملة
-                    retry_threshold = datetime.now() - timedelta(seconds=settings.retry_interval)
+                    # استخدام إعدادات إعادة المحاولة الخاصة بالحملة أو العامة
+                    retry_interval_val = active_campaign.retry_interval if active_campaign.retry_interval else settings.retry_interval
+                    retry_threshold = datetime.now() - timedelta(seconds=retry_interval_val)
+                    
+                    # استخدام الحد الأقصى للمحاولات الخاص بالحملة أو العامة
+                    max_retries_val = active_campaign.max_retries if active_campaign.max_retries else settings.max_retries
                     
                     contacts = session.query(Contact).filter(
                         Contact.campaign_id == active_campaign.id,
@@ -345,7 +390,8 @@ def run_dialer():
                             Contact.status == 'pending',
                             and_(
                                 Contact.status == 'retry',
-                                Contact.last_dialed <= retry_threshold
+                                Contact.last_dialed <= retry_threshold,
+                                Contact.retries < max_retries_val # Ensure we don't pick retries exceeding limit
                             )
                         )
                     ).order_by(Contact.retries.asc(), Contact.id.asc()).limit(len(my_dongles)).all()

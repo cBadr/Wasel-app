@@ -1,0 +1,105 @@
+
+{% extends "base.html" %}
+
+{% block header_title %}إنشاء حملة جديدة{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0 text-primary"><i class="fas fa-bullhorn me-2"></i> بيانات الحملة الجديدة</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form action="{{ url_for('campaign_create') }}" method="POST">
+                        
+                        <!-- Tabs Navigation -->
+                        <ul class="nav nav-tabs mb-4" id="campaignTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab"><i class="fas fa-info-circle me-2"></i> المعلومات الأساسية</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" type="button" role="tab"><i class="fas fa-calendar-alt me-2"></i> الجدولة والوقت</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab"><i class="fas fa-cogs me-2"></i> إعدادات متقدمة</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="campaignTabsContent">
+                            
+                            <!-- Basic Info Tab -->
+                            <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">اسم الحملة <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="name" required placeholder="مثال: حملة عروض فبراير">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">الكيو المستهدف (Target Queue) <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="target_queue" value="501" required>
+                                        <div class="form-text">رقم الكيو الذي سيتم تحويل العميل إليه بعد الرد.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Scheduling Tab -->
+                            <div class="tab-pane fade" id="schedule" role="tabpanel">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i> اترك الحقول فارغة للتشغيل اليدوي المفتوح.
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">تاريخ البدء</label>
+                                        <input type="date" class="form-control" name="start_date">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">تاريخ الانتهاء</label>
+                                        <input type="date" class="form-control" name="end_date">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">وقت البدء اليومي</label>
+                                        <input type="time" class="form-control" name="daily_start_time">
+                                        <div class="form-text">الوقت الذي تبدأ فيه الحملة العمل يومياً.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">وقت الانتهاء اليومي</label>
+                                        <input type="time" class="form-control" name="daily_end_time">
+                                        <div class="form-text">الوقت الذي تتوقف فيه الحملة يومياً.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Advanced Settings Tab -->
+                            <div class="tab-pane fade" id="advanced" role="tabpanel">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">عدد القنوات المتزامنة</label>
+                                        <input type="number" class="form-control" name="concurrent_channels" min="1" max="100" placeholder="الافتراضي: 1">
+                                        <div class="form-text">عدد المكالمات التي يتم إجراؤها في نفس الوقت لهذه الحملة.</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">عدد محاولات إعادة الاتصال</label>
+                                        <input type="number" class="form-control" name="max_retries" min="0" max="10" placeholder="الافتراضي: 3">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">الفاصل الزمني للمحاولة (ثانية)</label>
+                                        <input type="number" class="form-control" name="retry_interval" min="10" placeholder="الافتراضي: 60">
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top d-flex justify-content-between">
+                            <a href="{{ url_for('campaigns') }}" class="btn btn-secondary">إلغاء</a>
+                            <button type="submit" class="btn btn-primary px-4"><i class="fas fa-check me-2"></i> إنشاء الحملة</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
