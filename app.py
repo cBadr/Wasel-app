@@ -1173,7 +1173,19 @@ def import_cdr_to_campaign_route():
             count_added = 0
             
             for row in results:
-                phone = row['dst']
+                phone = str(row['dst']).strip()
+                
+                # Validation: Skip invalid numbers
+                # 1. Check length (must fit in DB column)
+                if len(phone) > 20:
+                    continue
+                # 2. Check for alphabetic characters (excludes things like "CALLERID")
+                if any(c.isalpha() for c in phone):
+                    continue
+                # 3. Basic validity check (must have some digits)
+                if not any(c.isdigit() for c in phone):
+                    continue
+                    
                 if phone in existing_phones:
                     continue
                     
