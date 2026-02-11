@@ -1319,7 +1319,7 @@ def add_role():
         return redirect(url_for('roles'))
     
     perms = {}
-    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import']
+    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import', 'reports']
     for res in resources:
         perms[res] = request.form.get(f'perm_{res}', 'none')
         
@@ -1338,7 +1338,7 @@ def edit_role(role_id):
     role.name = request.form.get('name')
     
     perms = {}
-    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import']
+    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import', 'reports']
     for res in resources:
         perms[res] = request.form.get(f'perm_{res}', 'none')
         

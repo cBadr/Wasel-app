@@ -3,6 +3,7 @@
 
 {% block header_title %}إدارة جهات الاتصال{% endblock %}
 
+
 {% block content %}
 <div class="card shadow-sm mb-4">
     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
@@ -154,6 +155,9 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block modals %}
 <!-- Add Contact Modal -->
 <div class="modal fade" id="addContactModal" tabindex="-1">
     <div class="modal-dialog">
@@ -226,7 +230,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
     // Handle Checkbox Selection
     const selectAll = document.getElementById('select-all');
