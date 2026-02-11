@@ -22,7 +22,7 @@
     <div class="card-body">
         
         <!-- Filter Form -->
-        <form action="{{ url_for('contacts_page') }}" method="GET" class="row g-3 mb-4 border-bottom pb-3">
+        <form action="{{ url_for(request.endpoint, **request.view_args) }}" method="GET" class="row g-3 mb-4 border-bottom pb-3">
             <div class="col-md-4">
                 <label class="form-label small text-muted">بحث بالرقم</label>
                 <input type="text" class="form-control" name="search" value="{{ search_query }}" placeholder="أدخل الرقم...">
@@ -106,7 +106,7 @@
                         </td>
                         <td>
                             {% if current_user.can('contacts', 'edit') %}
-                            <button class="btn btn-sm btn-outline-primary" onclick="editContact({{ contact.id }}, '{{ contact.phone_number }}', '{{ contact.name or '' }}', {{ contact.campaign_id }})">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editContact({{ contact.id }}, '{{ contact.phone_number }}', '{{ contact.name or '' }}', {{ contact.campaign_id }}, '{{ contact.status }}')">
                                 <i class="fas fa-edit"></i>
                             </button>
                             <a href="{{ url_for('delete_contact_route', contact_id=contact.id) }}" class="btn btn-sm btn-outline-danger" onclick="return confirm('هل أنت متأكد؟')">
@@ -132,13 +132,13 @@
         <nav aria-label="Page navigation" class="mt-4">
             <ul class="pagination justify-content-center">
                 {% if pagination.has_prev %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('contacts_page', page=pagination.prev_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status) }}">السابق</a></li>
+                <li class="page-item"><a class="page-link" href="{{ url_for(request.endpoint, page=pagination.prev_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status, **request.view_args) }}">السابق</a></li>
                 {% endif %}
                 
                 {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
                     {% if page_num %}
                         <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('contacts_page', page=page_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status) }}">{{ page_num }}</a>
+                            <a class="page-link" href="{{ url_for(request.endpoint, page=page_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status, **request.view_args) }}">{{ page_num }}</a>
                         </li>
                     {% else %}
                         <li class="page-item disabled"><span class="page-link">...</span></li>
@@ -146,7 +146,7 @@
                 {% endfor %}
 
                 {% if pagination.has_next %}
-                <li class="page-item"><a class="page-link" href="{{ url_for('contacts_page', page=pagination.next_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status) }}">التالي</a></li>
+                <li class="page-item"><a class="page-link" href="{{ url_for(request.endpoint, page=pagination.next_num, search=search_query, campaign_id=selected_campaign_id, status=selected_status, **request.view_args) }}">التالي</a></li>
                 {% endif %}
             </ul>
         </nav>
@@ -200,6 +200,7 @@
         <div class="modal-content">
             <form action="{{ url_for('update_contact') }}" method="POST">
                 <input type="hidden" name="contact_id" id="edit_contact_id">
+                <input type="hidden" name="return_url" value="{{ request.url }}">
                 <div class="modal-header">
                     <h5 class="modal-title">تعديل جهة الاتصال</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -219,6 +220,19 @@
                             {% for camp in campaigns %}
                             <option value="{{ camp.id }}">{{ camp.name }}</option>
                             {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الحالة</label>
+                        <select class="form-select" name="status" id="edit_status">
+                            <option value="pending">قيد الانتظار</option>
+                            <option value="dialed">جاري الاتصال</option>
+                            <option value="answered">تم الرد</option>
+                            <option value="failed">فشل</option>
+                            <option value="retry">إعادة محاولة</option>
+                            <option value="busy">مشغول</option>
+                            <option value="no answer">لا يوجد رد</option>
+                            <option value="congestion">خارج التغطية</option>
                         </select>
                     </div>
                 </div>
@@ -256,11 +270,12 @@
         c.addEventListener('change', updateBulkBtn);
     });
 
-    function editContact(id, phone, name, campaignId) {
+    function editContact(id, phone, name, campaignId, status) {
         document.getElementById('edit_contact_id').value = id;
         document.getElementById('edit_phone_number').value = phone;
         document.getElementById('edit_name').value = name;
         document.getElementById('edit_campaign_id').value = campaignId;
+        document.getElementById('edit_status').value = status;
         new bootstrap.Modal(document.getElementById('editContactModal')).show();
     }
 

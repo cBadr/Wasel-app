@@ -518,6 +518,8 @@ def update_contact():
     phone = request.form.get('phone_number')
     name = request.form.get('name')
     campaign_id = request.form.get('campaign_id')
+    status = request.form.get('status')
+    return_url = request.form.get('return_url')
     
     contact = Contact.query.get_or_404(contact_id)
     
@@ -525,22 +527,26 @@ def update_contact():
     old_campaign = Campaign.query.get(contact.campaign_id)
     if old_campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
          flash('لا تملك صلاحية تعديل هذا الرقم', 'danger')
-         return redirect(url_for('contacts_page'))
+         return redirect(return_url or url_for('contacts_page'))
          
     # Check ownership (of new campaign if changed)
     if int(campaign_id) != contact.campaign_id:
         new_campaign = Campaign.query.get(campaign_id)
         if new_campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
              flash('لا تملك صلاحية النقل لهذه الحملة', 'danger')
-             return redirect(url_for('contacts_page'))
+             return redirect(return_url or url_for('contacts_page'))
     
     contact.phone_number = phone
     contact.name = name
     contact.campaign_id = campaign_id
+    if status:
+        contact.status = status
+        # If status is changed to pending or retry, we might want to reset retries?
+        # For now, just set status.
     
     db.session.commit()
     flash('تم تحديث جهة الاتصال بنجاح', 'success')
-    return redirect(url_for('contacts_page'))
+    return redirect(return_url or url_for('contacts_page'))
 
 @app.route('/contacts/delete/<int:contact_id>')
 @login_required
