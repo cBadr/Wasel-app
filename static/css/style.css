@@ -454,21 +454,143 @@ body.dark-mode .table-hover tbody tr:hover {
 .toast.bg-warning::before { background: var(--warning-color); }
 .toast.bg-info::before { background: var(--info-color); }
 
+/* --- Sidebar Overlay --- */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease-in-out;
+    backdrop-filter: blur(3px);
+}
+
+.sidebar-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
 /* --- Responsive Adjustments --- */
 @media (max-width: 992px) {
     .sidebar {
         margin-right: calc(var(--sidebar-width) * -1);
+        box-shadow: none; /* Hide shadow when closed */
     }
     .sidebar.active {
         margin-right: 0;
+        box-shadow: -5px 0 15px rgba(0,0,0,0.5);
     }
     .content {
         margin-right: 0;
+        width: 100%;
     }
     .content.active {
-        margin-right: var(--sidebar-width);
+        margin-right: 0; /* Don't push content on mobile */
     }
 }
+
+@media (max-width: 576px) {
+    .content {
+        padding: 15px;
+    }
+    
+    header {
+        padding: 15px !important;
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 15px;
+    }
+    
+    header .d-flex:first-child {
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    header .d-flex:last-child {
+        justify-content: flex-end;
+        width: 100%;
+        border-top: 1px solid rgba(0,0,0,0.05);
+        padding-top: 10px;
+    }
+    
+    .card-header {
+        padding: 15px;
+    }
+    
+    .card-body {
+        padding: 15px;
+    }
+    
+    h2, .h2 { font-size: 1.5rem; }
+    h3, .h3 { font-size: 1.3rem; }
+    
+    /* Full width buttons on mobile for better touch targets */
+    .btn {
+        width: 100%;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    /* Exceptions for buttons inside tables or specific groups */
+    .table .btn, .btn-group .btn, .input-group .btn {
+        width: auto;
+        margin-bottom: 0;
+    }
+
+    /* Better Table Scrolling */
+    .table-responsive {
+        border-radius: 10px;
+        box-shadow: none;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+}
+
+/* --- Kinetic Effects & Animations --- */
+.hover-lift {
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.hover-lift:hover {
+    transform: translateY(-5px);
+}
+
+/* Shimmer Effect for Cards */
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.05), transparent);
+    transform: skewX(-25deg);
+    transition: 0.5s;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.card:hover::before {
+    left: 100%;
+    transition: 0.7s;
+}
+
+/* Button Pulse Animation */
+@keyframes btn-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb, 13, 71, 161), 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(var(--primary-rgb, 13, 71, 161), 0); }
+    100% { box-shadow: 0 0 0 0 rgba(var(--primary-rgb, 13, 71, 161), 0); }
+}
+
+.btn-pulse {
+    animation: btn-pulse 2s infinite;
+}
+
 
 /* --- Utilities --- */
 .text-gradient {

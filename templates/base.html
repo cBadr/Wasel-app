@@ -15,6 +15,9 @@
         <p class="mt-3 fw-bold">جاري المعالجة...</p>
     </div>
     <div class="wrapper">
+        <!-- Sidebar Overlay for Mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <!-- القائمة الجانبية -->
         <nav class="sidebar">
             <div class="sidebar-header">
@@ -227,10 +230,26 @@
     <script>
         // Sidebar Toggle
         const sidebarCollapse = document.getElementById('sidebarCollapse');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        const sidebar = document.querySelector('.sidebar');
+        const content = document.querySelector('.content');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('active');
+            content.classList.toggle('active');
+            if(sidebarOverlay) sidebarOverlay.classList.toggle('active');
+        }
+
         if(sidebarCollapse){
-            sidebarCollapse.addEventListener('click', function() {
-                document.querySelector('.sidebar').classList.toggle('active');
-                document.querySelector('.content').classList.toggle('active');
+            sidebarCollapse.addEventListener('click', toggleSidebar);
+        }
+
+        if(sidebarOverlay){
+            sidebarOverlay.addEventListener('click', function() {
+                // Close sidebar when clicking overlay
+                sidebar.classList.remove('active');
+                content.classList.remove('active');
+                sidebarOverlay.classList.remove('active');
             });
         }
 
