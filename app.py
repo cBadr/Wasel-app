@@ -460,7 +460,7 @@ def contacts_page():
         
     # Pagination
     pagination = query.order_by(Contact.id.desc()).paginate(page=page, per_page=50, error_out=False)
-    contacts = pagination.items
+    # Note: We pass pagination as 'contacts' because template uses contacts.items
     
     # Get available campaigns for filter dropdown
     if current_user.role == 'admin' or (current_user.user_role and current_user.user_role.name == 'Admin'):
@@ -468,8 +468,13 @@ def contacts_page():
     else:
         campaigns = Campaign.query.filter_by(user_id=current_user.id).all()
         
-    return render_template('contacts.html', contacts=contacts, pagination=pagination, campaigns=campaigns, 
-                           search=search_query, campaign_filter=campaign_filter, status_filter=status_filter)
+    return render_template('contacts.html', 
+                           contacts=pagination, 
+                           pagination=pagination, 
+                           campaigns=campaigns, 
+                           search_query=search_query, 
+                           selected_campaign_id=int(campaign_filter) if campaign_filter else None, 
+                           selected_status=status_filter)
 
 @app.route('/contacts/add', methods=['POST'])
 @login_required
@@ -632,9 +637,38 @@ def view_campaign(campaign_id):
     if campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
         flash('لا تملك صلاحية عرض جهات الاتصال لهذه الحملة', 'danger')
         return redirect(url_for('campaigns'))
+    
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('search', '')
+    status_filter = request.args.get('status', '')
+    
+    # Build query
+    query = Contact.query.filter_by(campaign_id=campaign_id)
+    
+    if search_query:
+        query = query.filter(Contact.phone_number.like(f'%{search_query}%'))
+    if status_filter:
+        query = query.filter(Contact.status == status_filter)
         
-    contacts = Contact.query.filter_by(campaign_id=campaign_id).all()
-    return render_template('contacts.html', campaign=campaign, contacts=contacts)
+    # Paginate
+    pagination = query.order_by(Contact.id.desc()).paginate(page=page, per_page=50, error_out=False)
+    
+    # Get available campaigns for filter dropdown (required by contacts.html)
+    if current_user.role == 'admin' or (current_user.user_role and current_user.user_role.name == 'Admin'):
+        campaigns = Campaign.query.all()
+    else:
+        campaigns = Campaign.query.filter_by(user_id=current_user.id).all()
+
+    # Pass pagination as 'contacts' because template iterates over contacts.items
+    return render_template('contacts.html', 
+                           campaign=campaign, 
+                           contacts=pagination,
+                           pagination=pagination,
+                           campaigns=campaigns,
+                           search_query=search_query,
+                           selected_campaign_id=campaign_id,
+                           selected_status=status_filter)
 
 @app.route('/campaign/<int:campaign_id>/add_contact', methods=['POST'])
 @login_required
