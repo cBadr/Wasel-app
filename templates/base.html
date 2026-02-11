@@ -29,11 +29,23 @@
                     </a>
                 </li>
                 
-                {% if current_user.can('campaigns', 'view') %}
-                <li class="{{ 'active' if 'campaign' in request.endpoint else '' }}">
-                    <a href="{{ url_for('campaigns') }}">
+                {% if current_user.can('campaigns', 'view') or current_user.can('contacts', 'view') %}
+                <li>
+                    <a href="#campaignsSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
                         <i class="fas fa-bullhorn"></i> إدارة الحملات
                     </a>
+                    <ul class="collapse list-unstyled {{ 'show' if 'campaign' in request.endpoint or request.endpoint == 'contacts_page' else '' }}" id="campaignsSubmenu">
+                        {% if current_user.can('campaigns', 'view') %}
+                        <li class="{{ 'active' if 'campaign' in request.endpoint else '' }}">
+                            <a href="{{ url_for('campaigns') }}">الحملات</a>
+                        </li>
+                        {% endif %}
+                        {% if current_user.can('contacts', 'view') %}
+                        <li class="{{ 'active' if request.endpoint == 'contacts_page' else '' }}">
+                            <a href="{{ url_for('contacts_page') }}">جهات الاتصال</a>
+                        </li>
+                        {% endif %}
+                    </ul>
                 </li>
                 {% endif %}
                 
@@ -69,14 +81,6 @@
                         </li>
                         {% endif %}
                     </ul>
-                </li>
-                {% endif %}
-
-                {% if current_user.can('contacts', 'view') %}
-                <li class="{{ 'active' if request.endpoint == 'contacts_page' else '' }}">
-                    <a href="{{ url_for('contacts_page') }}">
-                        <i class="fas fa-address-book"></i> إدارة جهات الاتصال
-                    </a>
                 </li>
                 {% endif %}
 

@@ -70,10 +70,20 @@ class User(UserMixin, db.Model):
             return {
                 'campaigns': 'edit',
                 'contacts': 'edit',
-                'monitor': 'view', # Monitor is usually view only but let's say view
+                'monitor': 'view',
                 'settings': 'edit',
                 'users': 'edit',
-                'roles': 'edit'
+                'roles': 'edit',
+                'monitor_queues': 'view',
+                'monitor_trunks': 'view',
+                'monitor_dongles': 'view',
+                'database': 'edit',
+                'packages': 'edit',
+                'command_screen': 'edit',
+                'test_call': 'edit',
+                'system_logs': 'view',
+                'cdr_import': 'edit',
+                'reports': 'view'
             }
         return {}
     
