@@ -1601,9 +1601,17 @@ def add_blacklist():
 @requires_permission('settings', 'edit')
 def delete_blacklist(item_id):
     item = Blacklist.query.get_or_404(item_id)
+    
+    # Reset Test Call History for this number so it can be tested again
+    try:
+        TestCallHistory.query.filter_by(phone_number=item.phone_number).delete()
+    except Exception as e:
+        # Don't fail the whole operation if history deletion fails
+        print(f"Error deleting test call history: {e}")
+        
     db.session.delete(item)
     db.session.commit()
-    flash('تم حذف الرقم من القائمة السوداء', 'success')
+    flash('تم حذف الرقم من القائمة السوداء وإعادة تعيين عداد المحاولات', 'success')
     return redirect(url_for('blacklist'))
 
 # --- Reporting Routes ---
