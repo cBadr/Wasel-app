@@ -3,64 +3,111 @@
 {% block header_title %}إدارة قاعدة البيانات{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-6">
-        <div class="card shadow-sm mb-4">
+<div class="row mb-4">
+    <!-- Statistics Cards -->
+    <div class="col-12">
+        <div class="card shadow-sm">
             <div class="card-header bg-white">
-                <h5 class="mb-0"><i class="fas fa-file-export me-2 text-primary"></i> تصدير قاعدة البيانات</h5>
+                <h5 class="mb-0 text-primary"><i class="fas fa-chart-pie me-2"></i> إحصائيات النظام</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted">
-                    يمكنك تحميل نسخة احتياطية كاملة من قاعدة البيانات الحالية (ملف .db).
-                    يفضل القيام بذلك بشكل دوري لضمان سلامة البيانات.
-                </p>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i> حجم قاعدة البيانات الحالي: <strong>{{ db_size }}</strong>
+                <div class="row g-3 text-center">
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 border rounded bg-light hover-lift">
+                            <h3 class="text-primary fw-bold">{{ stats.campaigns }}</h3>
+                            <span class="text-muted small">حملات</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 border rounded bg-light hover-lift">
+                            <h3 class="text-success fw-bold">{{ stats.contacts }}</h3>
+                            <span class="text-muted small">جهات اتصال</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 border rounded bg-light hover-lift">
+                            <h3 class="text-info fw-bold">{{ stats.users }}</h3>
+                            <span class="text-muted small">مستخدمين</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 border rounded bg-light hover-lift">
+                            <h3 class="text-danger fw-bold">{{ stats.blacklist }}</h3>
+                            <span class="text-muted small">قائمة سوداء</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 border rounded bg-light hover-lift">
+                            <h3 class="text-warning fw-bold">{{ stats.roles }}</h3>
+                            <span class="text-muted small">أدوار</span>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="p-3 border rounded bg-light hover-lift">
+                            <h5 class="text-secondary fw-bold dir-ltr">{{ db_size }}</h5>
+                            <span class="text-muted small">حجم الملف</span>
+                        </div>
+                    </div>
                 </div>
-                <a href="{{ url_for('export_database') }}" class="btn btn-primary w-100">
-                    <i class="fas fa-download me-2"></i> تحميل نسخة احتياطية
-                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4 h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-primary"><i class="fas fa-tools me-2"></i> صيانة وتصدير</h5>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <p class="text-muted">
+                    أدوات للحفاظ على أداء قاعدة البيانات ونسخ البيانات احتياطياً.
+                </p>
+                
+                <div class="d-grid gap-2 mt-auto">
+                    <a href="{{ url_for('optimize_database') }}" class="btn btn-outline-success hover-lift">
+                        <i class="fas fa-broom me-2"></i> تحسين القاعدة (Vacuum)
+                    </a>
+                    <a href="{{ url_for('export_database') }}" class="btn btn-primary hover-lift">
+                        <i class="fas fa-download me-2"></i> تحميل نسخة احتياطية (.db)
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-6">
-        <div class="card shadow-sm mb-4">
+        <div class="card shadow-sm mb-4 h-100">
             <div class="card-header bg-white">
-                <h5 class="mb-0"><i class="fas fa-file-import me-2 text-warning"></i> استيراد قاعدة بيانات</h5>
+                <h5 class="mb-0 text-warning"><i class="fas fa-file-import me-2"></i> استيراد قاعدة بيانات</h5>
             </div>
             <div class="card-body">
-                <p class="text-muted">
-                    يمكنك استعادة نسخة احتياطية سابقة. 
-                    <strong class="text-danger">تحذير:</strong> سيؤدي هذا الإجراء إلى استبدال قاعدة البيانات الحالية بالكامل وفقدان أي بيانات جديدة تم تسجيلها بعد النسخة الاحتياطية.
-                </p>
+                <div class="alert alert-warning py-2 small">
+                    <i class="fas fa-exclamation-triangle me-1"></i> 
+                    سيتم استبدال القاعدة الحالية بالكامل!
+                </div>
                 <form action="{{ url_for('import_database') }}" method="POST" enctype="multipart/form-data" onsubmit="return confirm('هل أنت متأكد تماماً؟ سيتم حذف جميع البيانات الحالية واستبدالها بالملف المرفوع.');">
-                    <div class="mb-3">
-                        <label for="db_file" class="form-label">ملف قاعدة البيانات (.db)</label>
-                        <input class="form-control" type="file" id="db_file" name="db_file" accept=".db" required>
+                    <div class="input-group mb-3">
+                        <input type="file" class="form-control" id="db_file" name="db_file" accept=".db" required>
+                        <button class="btn btn-warning" type="button" onclick="this.form.submit()">رفع</button>
                     </div>
-                    <button type="submit" class="btn btn-warning w-100">
-                        <i class="fas fa-upload me-2"></i> استعادة النسخة
-                    </button>
                 </form>
                 
-                <hr class="my-4">
+                <hr class="my-3">
                 
-                <h6 class="mb-3"><i class="fas fa-server me-2"></i> استيراد من مسار داخلي</h6>
+                <h6 class="small text-muted mb-2">استيراد من مسار داخلي (للمتقدمين)</h6>
                 <form action="{{ url_for('import_database_local') }}" method="POST" onsubmit="return confirm('هل أنت متأكد؟ سيتم استيراد الملف من المسار المحدد.');">
-                    <div class="mb-3">
-                        <label for="file_path" class="form-label">مسار الملف على السيرفر</label>
-                        <input type="text" class="form-control" id="file_path" name="file_path" placeholder="/root/backup.db" required>
-                        <div class="form-text">يرجى كتابة المسار الكامل للملف.</div>
+                    <div class="input-group">
+                        <input type="text" class="form-control form-control-sm" id="file_path" name="file_path" placeholder="/path/to/backup.db" required>
+                        <button class="btn btn-outline-secondary btn-sm" type="submit">استيراد</button>
                     </div>
-                    <button type="submit" class="btn btn-outline-warning w-100">
-                        <i class="fas fa-hdd me-2"></i> استيراد من السيرفر
-                    </button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
 
 <div class="row">
     <div class="col-12">

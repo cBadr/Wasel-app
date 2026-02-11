@@ -828,11 +828,12 @@ def settings():
         config.max_retries = int(request.form.get('max_retries', 3))
         config.retry_interval = int(request.form.get('retry_interval', 60))
         config.monitor_extension = request.form.get('monitor_extension', '100')
-        try:
-            config.test_call_limit = int(request.form.get('test_call_limit', 1))
-        except:
-            config.test_call_limit = 1
         
+        try:
+            config.test_call_limit = int(request.form.get('test_call_limit', 3))
+        except:
+            config.test_call_limit = 3
+
         # إعدادات CDR
         config.cdr_db_host = request.form.get('cdr_db_host')
         config.cdr_db_port = int(request.form.get('cdr_db_port'))
@@ -1803,7 +1804,30 @@ def database_page():
         else:
             size_str = f"{size_bytes / (1024 * 1024):.2f} MB"
             
-    return render_template('database.html', db_size=size_str)
+    # Statistics
+    stats = {
+        'campaigns': Campaign.query.count(),
+        'contacts': Contact.query.count(),
+        'users': User.query.count(),
+        'blacklist': Blacklist.query.count(),
+        'roles': Role.query.count()
+    }
+            
+    return render_template('database.html', db_size=size_str, stats=stats)
+
+@app.route('/database/optimize')
+@login_required
+@requires_permission('database', 'edit')
+def optimize_database():
+    try:
+        # For SQLite, VACUUM command rebuilds the database file, repacking it into a minimal amount of disk space
+        db.session.execute('VACUUM')
+        db.session.commit()
+        flash('تم تحسين قاعدة البيانات بنجاح (VACUUM)', 'success')
+    except Exception as e:
+        flash(f'حدث خطأ أثناء التحسين: {str(e)}', 'error')
+        
+    return redirect(url_for('database_page'))
 
 @app.route('/database/export')
 @login_required
