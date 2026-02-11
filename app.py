@@ -505,79 +505,6 @@ def add_single_contact():
     flash('تم إضافة جهة الاتصال بنجاح', 'success')
     return redirect(url_for('contacts_page'))
 
-@app.route('/contacts/import', methods=['POST'])
-@login_required
-@requires_permission('contacts', 'edit')
-def import_contacts_general():
-    campaign_id = request.form.get('campaign_id')
-    import_type = request.form.get('import_type') # 'text' or 'file'
-    
-    if not campaign_id:
-        flash('يرجى اختيار الحملة', 'danger')
-        return redirect(url_for('contacts_page'))
-        
-    # Check campaign ownership
-    campaign = Campaign.query.get(campaign_id)
-    if not campaign:
-        flash('الحملة غير موجودة', 'danger')
-        return redirect(url_for('contacts_page'))
-        
-    if campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
-        flash('لا تملك صلاحية الإضافة لهذه الحملة', 'danger')
-        return redirect(url_for('contacts_page'))
-    
-    count = 0
-    phones_to_add = []
-    
-    if import_type == 'text':
-        phones_str = request.form.get('phone_numbers', '')
-        lines = phones_str.splitlines()
-        for line in lines:
-            phone = line.strip()
-            if phone:
-                phones_to_add.append((phone, ''))
-                
-    elif import_type == 'file':
-        file = request.files.get('file')
-        if file: 
-            # Basic validation
-            if not (file.filename.lower().endswith('.csv') or file.filename.lower().endswith('.txt')):
-                 flash('يرجى اختيار ملف CSV أو نصي صحيح', 'danger')
-                 return redirect(url_for('contacts_page'))
-
-            try:
-                stream = file.stream.read().decode("utf-8", errors='ignore').splitlines()
-                for line in stream:
-                    if not line.strip(): continue
-                    parts = line.split(',')
-                    phone = parts[0].strip()
-                    name = parts[1].strip() if len(parts) > 1 else ""
-                    if phone:
-                        phones_to_add.append((phone, name))
-            except Exception as e:
-                flash(f'خطأ في قراءة الملف: {str(e)}', 'danger')
-                return redirect(url_for('contacts_page'))
-        else:
-            flash('يرجى اختيار ملف', 'danger')
-            return redirect(url_for('contacts_page'))
-            
-    # Process addition
-    for phone, name in phones_to_add:
-        # Check duplicate
-        if not Contact.query.filter_by(campaign_id=campaign_id, phone_number=phone).first():
-            new_contact = Contact(phone_number=phone, name=name, campaign_id=campaign_id)
-            db.session.add(new_contact)
-            count += 1
-            
-    db.session.commit()
-    
-    if count > 0:
-        flash(f'تم استيراد {count} جهة اتصال بنجاح', 'success')
-    else:
-        flash('لم يتم إضافة أي أرقام (قد تكون مكررة أو فارغة)', 'warning')
-        
-    return redirect(url_for('contacts_page', campaign_id=campaign_id))
-
 @app.route('/contacts/update', methods=['POST'])
 @login_required
 @requires_permission('contacts', 'edit')
@@ -699,8 +626,15 @@ def assign_contacts():
 @login_required
 @requires_permission('contacts', 'view')
 def view_campaign(campaign_id):
-    # Redirect to main contacts page with filter to ensure consistency and pagination support
-    return redirect(url_for('contacts_page', campaign_id=campaign_id))
+    campaign = Campaign.query.get_or_404(campaign_id)
+    
+    # Check ownership or admin
+    if campaign.user_id != current_user.id and current_user.role != 'admin' and (not current_user.user_role or current_user.user_role.name != 'Admin'):
+        flash('لا تملك صلاحية عرض جهات الاتصال لهذه الحملة', 'danger')
+        return redirect(url_for('campaigns'))
+        
+    contacts = Contact.query.filter_by(campaign_id=campaign_id).all()
+    return render_template('contacts.html', campaign=campaign, contacts=contacts)
 
 @app.route('/campaign/<int:campaign_id>/add_contact', methods=['POST'])
 @login_required
@@ -1385,7 +1319,7 @@ def add_role():
         return redirect(url_for('roles'))
     
     perms = {}
-    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import', 'reports']
+    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import']
     for res in resources:
         perms[res] = request.form.get(f'perm_{res}', 'none')
         
@@ -1404,7 +1338,7 @@ def edit_role(role_id):
     role.name = request.form.get('name')
     
     perms = {}
-    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import', 'reports']
+    resources = ['campaigns', 'contacts', 'monitor', 'settings', 'users', 'roles', 'monitor_queues', 'monitor_trunks', 'monitor_dongles', 'database', 'packages', 'command_screen', 'test_call', 'system_logs', 'cdr_import']
     for res in resources:
         perms[res] = request.form.get(f'perm_{res}', 'none')
         
